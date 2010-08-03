@@ -26,7 +26,7 @@ max_original_height, min_original_height = 2400, 800
 db = couchdb.Server('http://yorda.cs.northwestern.edu:5984/')['imagination']
 
 def load_passages(filename):
-    max_passages = 10 #while testing
+    max_passages = 10 #while testing asdf
     text = simplejson.load(open(filename, 'r'))
     num_passages_yielded = 0
     for book in text:
