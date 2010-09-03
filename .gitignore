@@ -2,3 +2,4 @@
 static/stored_images
 *.tmproj
 webcache/
+*.pnws

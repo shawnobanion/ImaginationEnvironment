@@ -1,7 +1,13 @@
+body {
+	text-align: center;
+}
+
 .screens {
-    width: 1000px;
-    height: 700px;
+    width: 990px;
+    height: 690px;
     border: 1px solid #999;
+	margin-right: auto;
+	margin-left: auto;
 }
 
 .control {
@@ -11,7 +17,7 @@
 }
 
 .screen {
-    border: 1px dotted #999;
+    /*border: 1px dotted #999;*/
     float:left;
     background-size: 100%;
     background-origin: content;
@@ -43,6 +49,9 @@
     color: white;
     opacity: 0;
     font-size: xx-large;
+	font-family: Arial, 'Helvetica Neue', Helvetica, sans-serif;
+	font-style: italic;
+	vertical-align: middle;
 }
 
 span.key {
@@ -50,11 +59,13 @@ span.key {
 }
 
 .screen.grid .text{
-    height: 73px;
+    height: 76px;
 }
 .screen.column .text{
-    height: 73px;
+    height: 76px;
 }
 .screen.single .text {
-    height: 225px;
+    height: 230px;
+	font-size: 50px;
+	line-height: 230px;
 }

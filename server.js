@@ -10,7 +10,15 @@ var sys = require("sys"),
 screens.setup();
 
 var mimetypes = {'.swf':'application/x-shockwave-flash', '.js':'text/javascript', 'html':'text/html', '.css':'text/css', '.jpg':'image/jpeg', 'jpeg':'image/jpeg', '.png':'image/png', '.gif':'image/gif'};
-var static_dir = '/Users/nate/Programming/ImaginationEnvironment/static'
+var static_dir = 'C:/cygwin/home/Shawn/ImaginationEnvironment/static'
+
+function send404(res)
+{
+	res.sendHeader(404, {"Content-Type": "text/plain"});  
+	res.write("404 Not Found\n");  
+	res.close();  
+	return; 
+}
 
 function onScreenUpdate(screen_) {
     listener.broadcast(JSON.stringify(screen_));
@@ -32,7 +40,7 @@ var server = http.createServer(function(req, res) {
 		
 		case '/run':
             sys.puts("Running!");
-            screens.run();
+            screens.runNew();
             break;
             
 		default:

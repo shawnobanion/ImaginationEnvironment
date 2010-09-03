@@ -56,7 +56,7 @@ function fade(in_or_out) {
 }
 
 function set_fade(text, in_or_out, start_time_offset, fade_time) {
-    console.log('start_time_offset is %o, fade_time is %o', start_time_offset, fade_time);
+    //console.log('start_time_offset is %o, fade_time is %o', start_time_offset, fade_time);
     var fades = in_or_out == 'in' ? fade_ins : fade_outs;
     var curr_time = (new Date).valueOf();
     
@@ -83,14 +83,16 @@ function ripple(screen_selector) {
 
 function onUpdate(data) {
     var data = JSON.parse(data);
-    var screen_ = $('#screen-' + data['id']).first();
+	var id = data['id'];
+    var screen_ = $('#screen-' + id).first();
     if (screen_.length) {
+		console.log('updating screen id: ' + id);
         screen_.css('background-image', 'url("' + data['image_url'] + '")');
         $('.text:eq(0)', screen_).html(data['text0']);
         $('.text:eq(1)', screen_).html(data['text1']);
         $('.text:eq(2)', screen_).html(data['text2']);
         var rippleDelay = parseInt(data.rippleDelay);
-        var screen_selector = '#screen-' + data['id'];
+        var screen_selector = '#screen-' + id;
         setTimeout(function() {ripple(screen_selector);}, rippleDelay);
     }
 }
@@ -108,7 +110,7 @@ function resetSocket() {
 
 function htmlForScreen(class_, id) {
     var ret = '<div class="' + class_ + ' screen" id="screen-' + id + '">'
-    console.log("making a screen with id " + id);
+    console.log("making a screen with id: " + id);
     ret += '<div class="text"></div>';
     ret += '<div class="text"></div>';
     ret += '<div class="text"></div>';

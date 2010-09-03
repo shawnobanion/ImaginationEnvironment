@@ -6,14 +6,18 @@ import shutil
 import time
 import unicodedata
 import urllib
+import copy
 
 import BeautifulSoup
 import Image
 
 import config
+from cStringIO import StringIO
 
 assert config.WEB_CACHE_DIR, "You need to put a variable in your config.py that points to a directory you don't mind getting filled with pages"
 assert os.path.isdir(config.WEB_CACHE_DIR), "config.WEB_CACHE_DIR is not pointing to a directory!"
+assert config.PATH_TO_STOP_WORDS_LIST, "You need to put a variable in  your config.py that points to a stop words list"
+
 _memory_cache = {}
 
 target_image_width = 1024
@@ -29,14 +33,14 @@ def _getFile(url, cachedFile=True, return_filename=False):
     else:
         opener = urllib.FancyURLopener()
         ret = opener.open(url).read()
-        o = open(filename, 'w')
+        o = open(filename, 'wb') # had to open in binary mode so PIL's Image.Open() function would work
         o.write(ret)
         o.close()
     if return_filename:
         return filename
     else:
         return ret
-    
+        
 def _clearFile(url):
     """This clears the file at url out of the cache, if it was in there.  You can use this for testing stuff, or clearing 
     munged stuff. """
@@ -140,17 +144,15 @@ def crop_images(in_url, *out_filenames):
         try:
             image = Image.open(img_filename)
         except IOError, e:
+            print e
             return False
         for out_filename in out_filenames:
             max_scale = min(image.size[0] / float(target_image_width), image.size[1] / float(target_image_height))
             scale = random.uniform(1.0, max_scale)
-            print scale
-            crop_width = scale * target_image_width#random.randint(target_image_width, image.size[0] - 1)
-            crop_height = scale * target_image_height#random.randint(target_image_height, image.size[1] - 1)
-            
-            crop_x = random.randint(0, int(image.size[0] - crop_width - 1))
-            crop_y = random.randint(0, int(image.size[1] - crop_height - 1))
-            print crop_width, crop_height, crop_x, crop_y
+            crop_width = int(scale * target_image_width)#random.randint(target_image_width, image.size[0] - 1)
+            crop_height = int(scale * target_image_height)#random.randint(target_image_height, image.size[1] - 1)
+            crop_x = int(random.randint(0, int(image.size[0] - crop_width - 1)))
+            crop_y = int(random.randint(0, int(image.size[1] - crop_height - 1)))
             crop = (crop_x, crop_y, crop_x + crop_width, crop_y + crop_height)
             region = image.crop(crop).resize((target_image_width, target_image_height))
             region.save(out_filename, dpi=(24, 24))
@@ -159,6 +161,81 @@ def crop_images(in_url, *out_filenames):
         for out_filename in out_filenames:
             shutil.copyfile(img_filename, out_filename)
     return True
+
+def EZGen(val):
+    '''If you don't have the copy.copy in there you get some really subtle errors.  Believe me!'''
+    while True:
+        yield copy.copy(val)
+        
+try:
+    lsStopWords = [l.lower().strip() for l in open(config.PATH_TO_STOP_WORDS_LIST) if not l.startswith('#')]
+    dStopWords = dict(zip(lsStopWords, EZGen(True)))
+except IOError:
+    #print 'DIDNT FIND STOPWORDS!'
+    lsStopWords = dStopWords = None
+
+def strip_all_stop_words(sStr, *args, **kwargs):
+  '''Strips leading and trailing stop words.  Will munge spaces.'''
+  if not sStr:
+      return sStr
+  lsWords = sStr.split()
+  clean_list = []
+  for word in lsWords:
+      if not bIsStopWord(word, *args, **kwargs):
+                clean_list.append(word)
+
+  return ' '.join(clean_list)
+    
+def sStripStopWords(sStr, *args, **kwargs):
+    '''Strips leading and trailing stop words.  Will munge spaces.'''
+    if not sStr:
+        return sStr
+    lsWords = sStr.split()
+    while lsWords and bIsStopWord(lsWords[0], *args, **kwargs):
+        lsWords.pop(0)
+    while lsWords and bIsStopWord(lsWords[-1], *args, **kwargs):
+        lsWords.pop(-1)
+    return ' '.join(lsWords)
+
+def bIsStopWord(sWord, bStrict=False, bIgnoreCase=True):
+    '''Takes a word, return True if its a stop word, false otherwise.  Case Insensitive.
+    Uses the list at stop_words.lst in ShowShared.'''
+    assert dStopWords, 'THe stop word list isnt loaded!  Are you sure stop_words.lst is where I expect , at %s?!?!' % (config.PATH_TO_STOP_WORDS_LIST)
+    if bIgnoreCase:
+        sWord = sWord.lower()
+    if bStrict:
+        return sWord in dStopWords
+    sWord = sScrubNonAlNum(sWord)
+    for s in sWord.split():
+        if s not in dStopWords:
+            return False
+    return True
+    
+class __cIHateUnicode:
+    def __init__(self, d):
+        self.d = d
+    def __getitem__(self, iKey):
+        if iKey in self.d:
+            return self.d[iKey]
+        if iKey > 128:
+            return unichr(iKey)
+        return chr(iKey)
+    def __call__(self, iKey):
+        return self.__getitem__(iKey)
+    
+cCharMap = __cIHateUnicode({233:'e'})
+
+def sScrubNonAlNum(sStr, bGoEasyOnUnicode=False):
+    '''String will only have strings, numbers, and spaces.'''
+    if bGoEasyOnUnicode:
+        sRet = ''.join([cCharMap(ord(c)) for c in list(sStr.strip()) if c.isalnum() or c.isspace() or 127 < ord(c) < 255 or c == ')' or c == '('])
+    else:
+        sRet = ''.join([cCharMap(ord(c)) for c in list(sStr.strip()) if c.isalnum() or c.isspace()])
+    return sRet
             
 if __name__ == '__main__':
-    print crop_images('http://stereo.gsfc.nasa.gov/img/spaceweather/preview/tricompSW.jpg', '/Users/nate/Desktop/out1.jpg', '/Users/nate/Desktop/out2.jpg', '/Users/nate/Desktop/out3.jpg')
+	print sStripStopWords('so and the earth brought the forth')
+	print strip_all_stop_words('so and the earth brought the forth')
+    #print crop_images('http://stereo.gsfc.nasa.gov/img/spaceweather/preview/tricompSW.jpg', '/Users/Shawn/Desktop/out1.jpg', '/Users/Shawn/Desktop/out2.jpg', '/Users/Shawn/Desktop/out3.jpg')
+    #print crop_images('http://farm3.static.flickr.com/2332/2073367106_b23ea7bb9b_o.jpg', '/Users/Shawn/Desktop/out1.jpg', '/Users/Shawn/Desktop/out2.jpg', '/Users/Shawn/Desktop/out3.jpg')
+    
