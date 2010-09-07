@@ -13,24 +13,24 @@ assert os.path.isdir(config.IMAGE_DIR), "Your config.IMAGE_DIR does not specify 
 ''' Passage length parameters '''
 max_lines_per_passage = 9
 max_chars_per_line = 25
-max_passages = 15
+max_passages = 20
 
 ''' Flickr search parameters '''
 flickr_api_key = '0d5347d0ffb31395e887a63e0a543abe'
 _flickr = flickrapi.FlickrAPI(flickr_api_key)
 remove_all_stop_words = True
-min_taken_date_filter = '1262325600' #1/1/2010 '946706400' #1/1/2000
+min_taken_date_filter = '946706400' #1/1/2000 #'1262325600' #1/1/2010
 safe_search_filter = 1
 
 ''' Image parameters '''    
 max_original_width, min_original_width = 3600, 1200
 max_original_height, min_original_height = 2400, 800
-default_image = 'http://infolab.northwestern.edu/media/uploaded_images/featured_illumination.jpg'
+default_image = 'http://farm5.static.flickr.com/4048/4332307799_2db1a391f0_o.jpg'
 
 ''' Global properties '''
 selected_images = []
 db = couchdb.Server('http://localhost:5984')['imagination'] # http://yorda.cs.northwestern.edu:5984/'
-filenames = {'Buddhism':'buddha.json', 'Christianity':'bible.json', 'Hinduism':'vedas.json'}
+filenames = {'Buddhism':'buddha.json', 'Christianity':'bible.json', 'Hinduism':'vedas.json', 'Islam':'quran.json'}
 
 ''' Given a filename, this opens the file, enumerates through the books and versus to return the maximum allowed number of passages '''
 def load_passages(filename):
@@ -82,7 +82,10 @@ def find_image(line):
         clean_line = utils.strip_all_stop_words(line)
     else:
         clean_line = utils.sStripStopWords(line)
-        
+
+    if not clean_line:
+        return ''
+    
     try:
         i = 0
         for photo in _flickr.walk(text=clean_line, sort='interestingness-desc', per_page='20', content_type='1', min_taken_date=min_taken_date_filter, safe_search=safe_search_filter):
@@ -109,7 +112,7 @@ def store_passage(religion, passage, passage_num, line_index, image_url):
         line_index = -1
     if not image_url:
         image_url = default_image
-        
+
     file_ending = image_url.rpartition('.')[-1]
     out_filenames = ['%s_%s.%s' % (int(time.time() * 1000), i, file_ending) for i in range(3)]
     # saves three copies of the image to the stored_images directory
@@ -160,8 +163,9 @@ def delete_passages():
 if __name__ == '__main__':
     delete_passages()
     run('Christianity')
-    run('Buddhism')
     run('Hinduism');
+    run('Islam');
+    #run('Buddhism')
     #for doc in db.view('_design/religions/_view/religions', key=["Christianity", 5]):#, endkey=["Christianity", 10000000]):
     #    print doc
     print 'DONE!'
