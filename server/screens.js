@@ -9,14 +9,7 @@ var emitter = new events.EventEmitter();
 
 var screens = [];
 
-/*
-var christianImages = ['http://kiddmillennium.files.wordpress.com/2009/02/jesus-thumps-up1.jpg?w=400&h=400', 'http://scrapetv.com/News/News%20Pages/Entertainment/Images/jesus.jpg', 'http://www.morethings.com/god_and_country/jesus/children-jesus-170.gif', 'http://holyhell.files.wordpress.com/2009/02/jesus-christ-w-lamb.jpg', 'http://faithfool.files.wordpress.com/2007/07/white-jesus.jpg'];
-var hinduismImages = ['http://www.indianchild.com/images/hindu_god_ram.jpg', 'http://momstinfoilhat.files.wordpress.com/2009/08/hindu-gods-kali.jpg', 'http://donyes.typepad.com/.a/6a00e554f2e0b988340120a4f85d81970b-800wi', 'http://www.moonbattery.com/archives/hindu-god.jpg', 'https://s3.amazonaws.com:443/cs-vannet/CommunityServer.Components.PostAttachments/00/00/00/16/43/stories+of+krishna+the+adventures+of+a+hindu+god+1.jpg?AWSAccessKeyId=0TTXDM86AJ1CB68A7P02&Expires=1274297361&Signature=7wQIrRGWbr%2bXqR%2b0RMjfwvqswl0%3d'];
-var buddhismImages = ['http://thepopeofpentecost.files.wordpress.com/2010/02/buddhism.jpg', 'http://erinsaley.files.wordpress.com/2009/02/buddah1.jpg', 'http://religions.iloveindia.com/images/buddhism.jpg', 'http://sundaytimes.lk/070527/images/mumbai.jpg', 'http://1.bp.blogspot.com/_WUdmYiDgMdo/S1cTuCRvxuI/AAAAAAAAAQ0/AFJmfBSYlA8/s400/Buddhism.jpg'];
-*/
-
 //var db = CouchDB.db('imagination', 'http://yorda.cs.northwestern.edu:5984');
-
 // note: Use the IP address, not localhost. I was receiving a DNS error with localhost.
 var db = CouchDB.db('imagination', 'http://127.0.0.1:5984');
 
@@ -42,26 +35,13 @@ function updateScreen(screen_index) {
     emitter.emit('screen', screens[screen_index]);
 }
 
-/*exports.run = function() {
-	if (debug) sys.puts('screens.js - run()');
-
-    for (var i = 0; i < 9; i++) {
-        updateScreen(i);
-    }
-	setTimeout(runChristianity, 1000);
-    setTimeout(runHinduism, 10000);
-    setTimeout(runBuddhism, 20000);
-}*/
-
-/* ***** BEGIN REFACTORING ***** */
-
 var categoryIndices = [];
 categoryIndices['Christianity'] = 0;
 categoryIndices['Hinduism'] = 0;
 //categoryIndices['Buddhism'] = 0;
 categoryIndices['Islam'] = 0;
 
-exports.runNew = function() {
+exports.run = function() {
 	setTimeout(function() { runCategory('Christianity', 0); }, 1000);
 	setTimeout(function() { runCategory('Islam', 1); }, 11000);
 	setTimeout(function() { runCategory('Hinduism', 2); }, 21000);
@@ -91,18 +71,10 @@ function nextCategory(category, column)
 	categoryIndices[category]++;
 }
 
-/* ***** END REFACTORING ***** */
-
 function randElement(arr) {
     var index = Math.floor(Math.random() * arr.length);
     return arr[index];
 }
-
-/*function printObject(obj) {
-    for (var k in obj) {
-        sys.puts(k + "=>" + obj[k]);
-    }
-}*/
 
 function handleCouchResult(result, column_index) {
     //I hope you like array math!
@@ -128,63 +100,3 @@ function handleCouchResult(result, column_index) {
 		if (i % 3 == 2) updateScreen(screen_index);
     }    
 }
-
-/*function nextChristian() {
-	if (debug) sys.puts('screens.js - nextChristian()');
-    db.view("religions/by_religion", {
-        key: ['Christianity'],
-        success: function(result){
-			sys.puts('result.total_rows: ' + result.rows.length)
-            if (currIndices.Christianity >= result.total_rows) {
-                currIndices.Christianity = 0;
-            }
-            handleCouchResult(result, 0);
-        }
-    });
-    currIndices.Christianity++;
-}
-
-function nextHinduism() {
-	if (debug) sys.puts('screens.js - nextHinduism()');
-    db.view("religions/religions", {
-        key: ['Hinduism', currIndices.Hinduism],
-        success: function(result){
-			sys.puts('result.total_rows: ' + result.rows.length)
-            if (currIndices.Hinduism >= result.total_rows) {
-                currIndices.Hinduism = 0;
-            }
-            handleCouchResult(result, 1);
-        }
-    });
-    currIndices.Hinduism++;
-}
-
-function nextBuddhism() {
-	if (debug) sys.puts('screens.js - nextBuddhism()');
-    db.view("religions/religions", {
-        key: ['Buddhism', currIndices.Buddhism],
-        success: function(result){
-			sys.puts('result.total_rows: ' + result.rows.length)
-            if (currIndices.Buddhism >= result.total_rows) {
-                currIndices.Buddhism = 0;
-            }
-            handleCouchResult(result, 2);
-        }
-    });
-    currIndices.Buddhism++;
-}
-
-function runChristianity() {
-    setInterval(nextChristian, 50000);
-    nextChristian();
-}
-
-function runHinduism() {
-    setInterval(nextHinduism, 50000);
-    nextHinduism();
-}
-
-function runBuddhism() {
-    setInterval(nextBuddhism, 50000);
-    nextBuddhism();
-}*/

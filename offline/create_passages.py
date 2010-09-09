@@ -7,6 +7,7 @@ import couchdb
 import flickrapi
 import utils
 import config
+import datetime
 assert config.IMAGE_DIR, "You need to specify a directory to write images to in config.py"
 assert os.path.isdir(config.IMAGE_DIR), "Your config.IMAGE_DIR does not specify a valid directory!"
 
@@ -31,12 +32,15 @@ default_image = 'http://farm5.static.flickr.com/4048/4332307799_2db1a391f0_o.jpg
 selected_images = []
 db = couchdb.Server('http://localhost:5984')['imagination'] # http://yorda.cs.northwestern.edu:5984/'
 filenames = {'Buddhism':'buddha.json', 'Christianity':'bible.json', 'Hinduism':'vedas.json', 'Islam':'quran.json'}
+files_to_delete = []
+records_to_delete = []
 
 ''' Given a filename, this opens the file, enumerates through the books and versus to return the maximum allowed number of passages '''
 def load_passages(filename):
     text = simplejson.load(open(filename, 'r'))
     num_passages_yielded = 0
     while True:
+    #for book in text:
         book = choose_random_book(text)
         lines = []
         curr_line = []
@@ -143,7 +147,7 @@ def run_passage(passage):
     return (line_index, image_url)
 
 ''' Given a religion name (e.g. filename) this loads the passages, finds an image, and stores the results in the db '''
-def run(religion):
+def run_religion(religion):
     filename = filenames[religion]
     passages = load_passages(filename)
     for passage_num, passage in enumerate(passages):
@@ -152,21 +156,42 @@ def run(religion):
 
             
 ''' Deletes all passages from the db while preserving any views you may have '''
-def delete_passages():
+def delete_all_passages():
+    now = datetime.datetime.now()
     for doc_id in db:
         if not doc_id.startswith('_design'): # do not delete any views we have saved!
             db.delete(db[doc_id])
-            print 'deleted ' + doc_id
+            print 'deleted ', doc_id
     for filename in os.listdir(config.IMAGE_DIR):
         os.remove(os.path.join(config.IMAGE_DIR, filename))
-                                
+
+def delete_old_passages():
+    for record_id in records_to_delete:
+        db.delete(db[record_id])
+        print 'deleted ', record_id
+    for filename in files_to_delete:
+        os.remove(filename)
+        print 'removed file', filename
+
+def flag_files_for_deletion():
+    for filename in os.listdir(config.IMAGE_DIR):
+        files_to_delete.append(os.path.join(config.IMAGE_DIR, filename))
+
+def flag_records_for_deletion():
+    for doc in db.view('_design/religions/_view/religions'):
+        records_to_delete.append(doc.id)
+
+def run():
+    flag_files_for_deletion()
+    flag_records_for_deletion()
+    run_religion('Christianity')
+    run_religion('Hinduism')
+    run_religion('Islam')
+    delete_old_passages()
+
 if __name__ == '__main__':
-    delete_passages()
-    run('Christianity')
-    run('Hinduism');
-    run('Islam');
-    #run('Buddhism')
-    #for doc in db.view('_design/religions/_view/religions', key=["Christianity", 5]):#, endkey=["Christianity", 10000000]):
-    #    print doc
+
+    run()
+
     print 'DONE!'
     

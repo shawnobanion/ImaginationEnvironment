@@ -1,11 +1,12 @@
 body {
 	text-align: center;
+	margin: 0;
 }
 
 .screens {
-    width: 990px;
-    height: 690px;
-    border: 1px solid #999;
+    /*width: 990px;
+    height: 690px;*/
+    /*border: 1px solid #999;*/
 	margin-right: auto;
 	margin-left: auto;
 }
@@ -35,8 +36,10 @@ body {
 }
 
 .screen.single {
-    width: 990px;
-    height: 690px;
+	width: 100%;
+	height: 100%;
+    /*width: 990px;
+    height: 690px;*/
 /*    background-size: 990px 690px;*/
 }
 
@@ -50,8 +53,6 @@ body {
     opacity: 0;
     font-size: xx-large;
 	font-family: Arial, 'Helvetica Neue', Helvetica, sans-serif;
-	font-style: italic;
-	vertical-align: middle;
 }
 
 span.key {
@@ -65,7 +66,8 @@ span.key {
     height: 76px;
 }
 .screen.single .text {
-    height: 230px;
+    /*height: 230px;*/
+	height: 33%;
 	font-size: 50px;
-	line-height: 230px;
+	line-height: 240px;
 }

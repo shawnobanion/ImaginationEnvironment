@@ -11,9 +11,16 @@ TEXT.delay_two = 6666;
 TEXT.opacify_interval = 83;
 
 $(function(foo){
-   setupControls();
-   setInterval(function() {fade('in');}, TEXT.opacify_interval);
-   setInterval(function() {fade('out');}, TEXT.opacify_interval);
+	setupControls();
+	setInterval(function() {fade('in');}, TEXT.opacify_interval);
+	setInterval(function() {fade('out');}, TEXT.opacify_interval);
+	var id = getQueryStringParameter('id');
+	if (id != '') 
+	{
+		setupSingleScreen(id);
+		hideControls();
+	}
+	if (getQueryStringParameter('run')) { runScreens(); }
 });
 
 
@@ -118,9 +125,28 @@ function htmlForScreen(class_, id) {
     return ret
 }
 
+function setupSingleScreen(id)
+{
+	resetSocket();
+	$('.title').text('Showing screen ' + (id));
+	$('.screens').empty();
+	$('.screens').append(htmlForScreen('single', id));
+}
+
+function runScreens()
+{
+	$.get('http://localhost:8080/run');
+}
+
+function hideControls()
+{
+	$('.controls').hide();
+	$('.title').hide();
+}
+
 function setupControls() {
     $('.control#run').click(function () {
-        $.get('http://localhost:8080/run');
+        runScreens();
     })
     $('.control.grid').click(function () {
         resetSocket();
@@ -133,6 +159,7 @@ function setupControls() {
     $('.control.column').click(function () {
         resetSocket();
         var column_id = parseInt($(this).attr('id'), 10);
+		setupSingleScreen(column_id);
         $('.title').text('Showing column ' + (column_id));
         $('.screens').empty();
         for (var i =0 ; i < 3; i++) {
@@ -141,10 +168,10 @@ function setupControls() {
         }
     });
     $('.control.single').click(function () {
-        resetSocket();
         var screen_id = parseInt($(this).attr('id'), 10);
-        $('.title').text('Showing screen ' + (screen_id));
-        $('.screens').empty();
-        $('.screens').append(htmlForScreen('single', screen_id));
+        setupSingleScreen(screen_id);
     });
+	$('.control.hide').click(function () {
+		hideControls();
+	});
 }

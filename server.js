@@ -40,7 +40,7 @@ var server = http.createServer(function(req, res) {
 		
 		case '/run':
             sys.puts("Running!");
-            screens.runNew();
+            screens.run();
             break;
             
 		default:
