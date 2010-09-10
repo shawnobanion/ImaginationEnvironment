@@ -10,11 +10,12 @@ import config
 import datetime
 assert config.IMAGE_DIR, "You need to specify a directory to write images to in config.py"
 assert os.path.isdir(config.IMAGE_DIR), "Your config.IMAGE_DIR does not specify a valid directory!"
+assert config.COUCHDB_CONNECTION_STRING, "You need to specify a couchdb connection string in config.py"
 
 ''' Passage length parameters '''
 max_lines_per_passage = 9
 max_chars_per_line = 25
-max_passages = 20
+max_passages = 5
 
 ''' Flickr search parameters '''
 flickr_api_key = '0d5347d0ffb31395e887a63e0a543abe'
@@ -30,7 +31,7 @@ default_image = 'http://farm5.static.flickr.com/4048/4332307799_2db1a391f0_o.jpg
 
 ''' Global properties '''
 selected_images = []
-db = couchdb.Server('http://localhost:5984')['imagination'] # http://yorda.cs.northwestern.edu:5984/'
+db = couchdb.Server(config.COUCHDB_CONNECTION_STRING)['imagination']
 filenames = {'Buddhism':'buddha.json', 'Christianity':'bible.json', 'Hinduism':'vedas.json', 'Islam':'quran.json'}
 files_to_delete = []
 records_to_delete = []
@@ -167,11 +168,13 @@ def delete_all_passages():
 
 def delete_old_passages():
     for record_id in records_to_delete:
-        db.delete(db[record_id])
-        print 'deleted ', record_id
+	if record_id in db:
+	        db.delete(db[record_id])
+	        print 'deleted ', record_id
     for filename in files_to_delete:
-        os.remove(filename)
-        print 'removed file', filename
+	if os.path.exists(filename):
+	        os.remove(filename)
+	        print 'removed file', filename
 
 def flag_files_for_deletion():
     for filename in os.listdir(config.IMAGE_DIR):
