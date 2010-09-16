@@ -106,18 +106,21 @@ function onUpdate(data) {
 
 function resetSocket() {
     if (socket) {
+		console.log('disconnecting socket');
         socket.disconnect();
         socket = null;
     }
-
-    socket = new io.Socket('localhost', {rememberTransport: false, port: 8080});
+	
+	console.log('creating new socket and connecting');
+	var server = 'localhost';
+    socket = new io.Socket(server, {rememberTransport: false, port: 8080});
     socket.connect();
     socket.addEvent('message', onUpdate);
 }
 
 function htmlForScreen(class_, id) {
     var ret = '<div class="' + class_ + ' screen" id="screen-' + id + '">'
-    console.log("making a screen with id: " + id);
+    console.log("creating html for screen #" + id);
     ret += '<div class="text"></div>';
     ret += '<div class="text"></div>';
     ret += '<div class="text"></div>';
@@ -151,7 +154,7 @@ function setupControls() {
     $('.control.grid').click(function () {
         resetSocket();
         $('.title').text("Showing all nine screens");
-        $('.screens').empty();
+        $('.screens').empty().css('width', '990px').css('height', '690px');
         for (var screen_id = 0; screen_id < 9; screen_id++) {
             $('.screens').append(htmlForScreen('grid', screen_id));
         }
@@ -159,7 +162,6 @@ function setupControls() {
     $('.control.column').click(function () {
         resetSocket();
         var column_id = parseInt($(this).attr('id'), 10);
-		setupSingleScreen(column_id);
         $('.title').text('Showing column ' + (column_id));
         $('.screens').empty();
         for (var i =0 ; i < 3; i++) {
@@ -171,7 +173,7 @@ function setupControls() {
         var screen_id = parseInt($(this).attr('id'), 10);
         setupSingleScreen(screen_id);
     });
-	$('.control.hide').click(function () {
+	$('.control').click(function () {
 		hideControls();
 	});
 }

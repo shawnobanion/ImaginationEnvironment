@@ -4,8 +4,8 @@ body {
 }
 
 .screens {
-    width: 990px;
-    height: 690px;
+    /*width: 990px;
+    height: 690px;*/
     /*border: 1px solid #999;*/
 	margin-right: auto;
 	margin-left: auto;
@@ -66,8 +66,7 @@ span.key {
     height: 76px;
 }
 .screen.single .text {
-    /*height: 230px;*/
-	height: 33%;
+	height: 256px;
 	font-size: 50px;
-	line-height: 240px;
+	line-height: 256px;
 }

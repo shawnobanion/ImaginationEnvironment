@@ -48,14 +48,12 @@ exports.run = function() {
 }
 
 function runCategory(category, column) {
-	if (debug) sys.puts('runCategory: ' + category);
     setInterval(function() { nextCategory(category, column); }, 50000);
     nextCategory(category, column);
 }
 
 function nextCategory(category, column)
 {
-	if (debug) sys.puts('nextCategory: ' + category);
     db.view("religions/religions", {
         key: [category, categoryIndices[category]],
         success: function(result){
