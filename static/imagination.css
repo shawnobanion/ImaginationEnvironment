@@ -4,8 +4,8 @@ body {
 }
 
 .screens {
-    /*width: 990px;
-    height: 690px;*/
+    width: 990px;
+    height: 690px;
     /*border: 1px solid #999;*/
 	margin-right: auto;
 	margin-left: auto;

@@ -1,6 +1,8 @@
 import copy
 import os
 import random
+import sys
+
 import simplejson
 import time
 import couchdb
@@ -8,14 +10,17 @@ import flickrapi
 import utils
 import config
 import datetime
+
 assert config.IMAGE_DIR, "You need to specify a directory to write images to in config.py"
 assert os.path.isdir(config.IMAGE_DIR), "Your config.IMAGE_DIR does not specify a valid directory!"
+assert config.OFFLINE_DIR, "You need to specify an offline directory"
+assert os.path.isdir(config.OFFLINE_DIR), "You need to specify a valid offline directory"
 assert config.COUCHDB_CONNECTION_STRING, "You need to specify a couchdb connection string in config.py"
 
 ''' Passage length parameters '''
 max_lines_per_passage = 9
 max_chars_per_line = 25
-max_passages = 5
+max_passages = 20
 
 ''' Flickr search parameters '''
 flickr_api_key = '0d5347d0ffb31395e887a63e0a543abe'
@@ -32,7 +37,7 @@ default_image = 'http://farm5.static.flickr.com/4048/4332307799_2db1a391f0_o.jpg
 ''' Global properties '''
 selected_images = []
 db = couchdb.Server(config.COUCHDB_CONNECTION_STRING)['imagination']
-filenames = {'Buddhism':'buddha.json', 'Christianity':'bible.json', 'Hinduism':'vedas.json', 'Islam':'quran.json'}
+filenames = {'Buddhism':'buddha.json', 'Christianity':config.OFFLINE_DIR + 'bible.json', 'Hinduism':config.OFFLINE_DIR + 'vedas.json', 'Islam':config.OFFLINE_DIR + 'quran.json'}
 files_to_delete = []
 records_to_delete = []
 
@@ -92,16 +97,14 @@ def find_image(line):
         return ''
     
     try:
-        i = 0
         for photo in _flickr.walk(text=clean_line, sort='interestingness-desc', per_page='20', content_type='1', min_taken_date=min_taken_date_filter, safe_search=safe_search_filter):
             (width, height), url = _sizeAndURLOfImage(photo)
-            i+=1
             if url:
                 photo_id = photo.attrib['id']
                 #we have a max here, because my network or PIL doesn't like 11k by 8k pictures
                 #if not photo_id in selected_images and max_original_width > width > min_original_width and max_original_height > height > min_original_height:
                 if not photo_id in selected_images and width > min_original_width and height > min_original_height:
-                    print i, '/ 20', clean_line
+                    print clean_line
                     print url
                     print
                     selected_images.append(photo_id)
@@ -185,16 +188,19 @@ def flag_records_for_deletion():
         records_to_delete.append(doc.id)
 
 def run():
+    print_with_time('Starting create passages...')
     flag_files_for_deletion()
     flag_records_for_deletion()
     run_religion('Christianity')
     run_religion('Hinduism')
     run_religion('Islam')
     delete_old_passages()
+    print_with_time('Finished creating passages...')
+
+def print_with_time(text):
+    print text, datetime.datetime.now()
 
 if __name__ == '__main__':
-
     run()
-
-    print 'DONE!'
+    
     
