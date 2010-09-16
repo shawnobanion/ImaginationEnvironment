@@ -1,123 +1,181 @@
 var url = require('url'),
 		sys = require('sys'),
-		Options = require('./util/options').Options,
-		Client = require('./client').Client,
+		fs = require('fs'),
+		options = require('./utils').options,
+		Client = require('./client'),
+		clientVersion = require('./../../static/client/lib/io').io.version,
+		transports = {
+			'flashsocket': require('./transports/flashsocket'),
+			'htmlfile': require('./transports/htmlfile'),
+			'websocket': require('./transports/websocket'),
+			'xhr-multipart': require('./transports/xhr-multipart'),
+			'xhr-polling': require('./transports/xhr-polling'),
+			'jsonp-polling': require('./transports/jsonp-polling')
+		},
 
-Transports = {};
-
-Listener = this.Listener = Class({
-	
-	include: [process.EventEmitter.prototype, Options],
-	
-	options: {
+Listener = module.exports = function(server, options){
+	process.EventEmitter.call(this);
+	var self = this;
+	this.server = server;
+	this.options({
 		origins: '*:*',
 		resource: 'socket.io',
-		transports: ['websocket', 'flashsocket', 'htmlfile', 'xhr-multipart', 'xhr-polling'],
-		transportOptions: {},
+		transports: ['websocket', 'flashsocket', 'htmlfile', 'xhr-multipart', 'xhr-polling', 'jsonp-polling'],
+		transportOptions: {
+			'xhr-polling': {
+				timeout: null, // no heartbeats
+				closeTimeout: 8000,
+				duration: 20000
+			},
+			'jsonp-polling': {
+				timeout: null, // no heartbeats
+				closeTimeout: 8000,
+				duration: 20000
+			}
+		},
 		log: function(message){
-			sys.log(message);
+			require('sys').log(message);
 		}
-	},
-  
-  init: function(server, options){
-		var self = this;
-		process.EventEmitter.call(this);
-		this.server = server;
-		this.setOptions(options);
-		this.clients = [];
-		this.clientsIndex = {};
-		
-		var listener = (this.server._events['request'] instanceof Array) 
-			? this.server._events['request'][0] 
-			: this.server._events['request'];
-		if (listener){
-			this.server._events['request'] = function(req, res){
-				if (self.check(req, res)) return;
-				listener(req, res);
-			};
+	}, options);
+
+	this.clients = this.clientsIndex = {};
+	this._clientFiles = {};
+	
+	var listeners = this.server.listeners('request');
+	this.server.removeAllListeners('request');
+	
+	this.server.addListener('request', function(req, res){
+		if (self.check(req, res)) return;
+		for (var i = 0, len = listeners.length; i < len; i++){
+			listeners[i].call(this, req, res);
+		}
+	});
+	
+	this.server.addListener('upgrade', function(req, socket, head){
+		if (!self.check(req, socket, true, head)){
+			socket.destroy();
+		}
+	});
+	
+	for (var i in transports){
+		if ('init' in transports[i]) transports[i].init(this);
+	}
+	
+	this.options.log('socket.io ready - accepting connections');
+};
+
+sys.inherits(Listener, process.EventEmitter);
+for (var i in options) Listener.prototype[i] = options[i];
+
+Listener.prototype.broadcast = function(message, except){
+	for (var i = 0, k = Object.keys(this.clients), l = k.length; i < l; i++){
+		if (this.clients[k[i]] && (!except || [].concat(except).indexOf(this.clients[k[i]].sessionId) == -1)){
+			this.clients[k[i]].send(message);
+		}
+	}
+	return this;
+};
+
+Listener.prototype.check = function(req, res, httpUpgrade, head){
+	var path = url.parse(req.url).pathname, parts, cn;
+	if (path && path.indexOf('/' + this.options.resource) === 0){
+		parts = path.substr(1).split('/');
+		if (this._serveClient(parts.slice(1).join('/'), req, res)) return true;
+		if (!(parts[1] in transports)) return false;
+		if (parts[2]){
+			cn = this.clients[parts[2]];
+			if (cn){
+				cn._onConnect(req, res);
+			} else {
+				req.connection.end();
+				this.options.log('Couldnt find client with session id "' + parts[2] + '"');
+			}
 		} else {
-			throw new Error('Couldn\'t find the `request` event in the HTTP server.');
+			this._onConnection(parts[1], req, res, httpUpgrade, head);
 		}
-		
-		this.server.addListener('upgrade', function(req, socket, head){
-			if (!self.check(req, socket, true)){
-				socket.destroy();
+		return true;
+	}
+	return false;
+};
+
+Listener.prototype._serveClient = function(path, req, res){
+	var self = this,
+	    types = {
+	      swf: 'application/x-shockwave-flash',
+	      js: 'text/javascript'
+	    };
+	
+	function write(path){
+		if (1==2&& req.headers['if-none-match'] == clientVersion){
+			res.writeHead(304);
+			res.end();
+		} else {
+			res.writeHead(200, self._clientFiles[path].headers);
+			res.write(self._clientFiles[path].content, self._clientFiles[path].encoding);
+			res.end();
+		}
+	};
+	
+	function error(){
+		res.writeHead(404);
+		res.write('404');
+		res.end();
+	};
+	if (req.method == 'GET' && path == 'socket.io.js' || path.indexOf('lib/vendor/web-socket-js/') === 0){
+		if (path in this._clientFiles){
+			write(path);
+		}
+		fs.readFile(__dirname + '/../../support/socket.io-client/' + path, function(err, data){
+			if (err){
+				return error();
+			} else {
+				var ext = path.split('.').pop();
+				if (!(ext in types)){
+					return error();
+				}
+				self._clientFiles[path] = {
+					headers: {
+						'Content-Length': data.length,
+						'Content-Type': types[ext],
+						'ETag': clientVersion
+					},
+					content: data,
+					encoding: ext == 'swf' ? 'binary' : 'utf8'
+				};
+				write(path);
 			}
 		});
-		
-		this.options.transports.forEach(function(t){
-			if (!(t in Transports)){
-				Transports[t] = require('./transports/' + t)[t];
-				if (Transports[t].init) Transports[t].init(this);
-			} 
-		}, this);
-		
-		this.options.log('socket.io ready - accepting connections');
-  },
-
-	broadcast: function(message, except){
-		for (var i = 0, l = this.clients.length; i < l; i++){
-			if (this.clients[i] && (!except || [].concat(except).indexOf(this.clients[i].sessionId) == -1)){
-				this.clients[i].send(message);
-			}
-		}
-		return this;
-	},
-
-	check: function(req, res, httpUpgrade){
-		var path = url.parse(req.url).pathname, parts, cn;
-		if (path.indexOf('/' + this.options.resource) === 0){	
-			parts = path.substr(1).split('/');
-			if (parts[2]){
-				cn = this._lookupClient(parts[2]);
-				if (cn){
-					cn._onConnect(req, res);
-				} else {
-					req.connection.end();
-					sys.log('Couldnt find client with session id "' + parts[2] + '"');
-				}
-			} else {
-				this._onConnection(parts[1], req, res, httpUpgrade);
-			}
-			return true;
-		}
-		return false;
-	},
-	
-	_lookupClient: function(sid){
-		return this.clientsIndex[sid];
-	},
-	
-	_onClientConnect: function(client){
-		if (!(client instanceof Client) || !client.sessionId){
-			return sys.log('Invalid client');
-		}
-		client.i = this.clients.length;
-		this.clients.push(client);
-		this.clientsIndex[client.sessionId] = client;
-		sys.log('Client '+ client.sessionId +' connected');
-		this.emit('clientConnect', client);
-	},
-	
-	_onClientMessage: function(data, client){
-		this.emit('clientMessage', data, client);
-	},
-	
-	_onClientDisconnect: function(client){
-		this.clientsIndex[client.sessionId] = null;
-		this.clients[client.i] = null;
-		sys.log('Client '+ client.sessionId +' disconnected');		
-		this.emit('clientDisconnect', client);
-	},
-	
-	// new connections (no session id)
-	_onConnection: function(transport, req, res, httpUpgrade){
-		if (this.options.transports.indexOf(transport) === -1 || (httpUpgrade && !Transports[transport].httpUpgrade)){
-			httpUpgrade ? res.destroy() : req.connection.destroy();
-			return sys.log('Illegal transport "'+ transport +'"');
-		}
-		sys.log('Initializing client with transport "'+ transport +'"');
-		new Transports[transport](this, req, res, this.options.transportOptions[transport]);
+		return true;
 	}
-  
-});
+	
+	return false;
+};
+
+Listener.prototype._onClientConnect = function(client){
+	if (!(client instanceof Client) || !client.sessionId){
+		return this.options.log('Invalid client');
+	}
+	this.clients[client.sessionId] = client;
+	this.options.log('Client '+ client.sessionId +' connected');
+	this.emit('clientConnect', client);
+	this.emit('connection', client);
+};
+
+Listener.prototype._onClientMessage = function(data, client){
+	this.emit('clientMessage', data, client);
+};
+
+Listener.prototype._onClientDisconnect = function(client){
+	delete this.clients[client.sessionId];
+	this.options.log('Client '+ client.sessionId +' disconnected');
+	this.emit('clientDisconnect', client);
+};
+
+Listener.prototype._onConnection = function(transport, req, res, httpUpgrade, head){
+	if (this.options.transports.indexOf(transport) === -1 || (httpUpgrade && !transports[transport].httpUpgrade)){
+		httpUpgrade ? res.destroy() : req.connection.destroy();
+		return this.options.log('Illegal transport "'+ transport +'"');
+	}
+	this.options.log('Initializing client with transport "'+ transport +'"');
+	new transports[transport](this, req, res, this.options.transportOptions[transport], head);
+};
