@@ -174,6 +174,6 @@ function setupControls() {
         setupSingleScreen(screen_id);
     });
 	$('.control').click(function () {
-		hideControls();
+		//hideControls();
 	});
 }
