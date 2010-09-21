@@ -20,7 +20,7 @@ assert config.COUCHDB_CONNECTION_STRING, "You need to specify a couchdb connecti
 ''' Passage length parameters '''
 max_lines_per_passage = 9
 max_chars_per_line = 25
-max_passages = 20
+max_passages = 3
 
 ''' Flickr search parameters '''
 flickr_api_key = '0d5347d0ffb31395e887a63e0a543abe'
@@ -171,13 +171,13 @@ def delete_all_passages():
 
 def delete_old_passages():
     for record_id in records_to_delete:
-	if record_id in db:
-	        db.delete(db[record_id])
-	        print 'deleted ', record_id
+        if record_id in db:
+            db.delete(db[record_id])
+            print 'deleted ', record_id
     for filename in files_to_delete:
-	if os.path.exists(filename):
-	        os.remove(filename)
-	        print 'removed file', filename
+        if os.path.exists(filename):
+            os.remove(filename)
+            print 'removed file', filename
 
 def flag_files_for_deletion():
     for filename in os.listdir(config.IMAGE_DIR):

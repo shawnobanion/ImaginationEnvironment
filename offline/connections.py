@@ -6,6 +6,11 @@ import couchdb
 import flickrapi
 import utils
 import re
+import time
+import os
+import couchdb_util
+import cosine
+import sys
 
 ''' Passage length parameters '''
 max_lines_per_passage = 9
@@ -15,18 +20,21 @@ max_passages = 1
 ''' Flickr search parameters '''
 flickr_api_key = '0d5347d0ffb31395e887a63e0a543abe'
 _flickr = flickrapi.FlickrAPI(flickr_api_key)
-remove_all_stop_words = True
-min_taken_date_filter = '946706400' #1/1/2000 #'1262325600' #1/1/2010
+remove_all_stop_words = False
+min_taken_date_filter = 946706400 #1/1/2000
 safe_search_filter = 1
+sort_by = 'interestingness-desc'
 
 ''' Image parameters '''    
 max_original_width, min_original_width = 3600, 1200
-max_original_height, min_original_height = 2400, 800
+max_original_height, min_original_height = 2400, 786
 
 ''' Global properties '''
 selected_images = []
 db = couchdb.Server(config.COUCHDB_CONNECTION_STRING)['imagination']
 filenames = {'Buddhism':'buddha.json', 'Christianity':config.OFFLINE_DIR + 'bible.json', 'Hinduism':config.OFFLINE_DIR + 'vedas.json', 'Islam':config.OFFLINE_DIR + 'quran.json'}
+images_to_delete = []
+documents_to_delete = []
 
 def choose_random_book(text):
     index = random.randint(0, len(text) - 1)
@@ -40,9 +48,10 @@ def choose_random_verse(book):
     book['verses'].pop(index)
     return verse
 
-def load_passages(filename):
+def load_passages(filename, max_passages=sys.maxint):
     text = simplejson.load(open(filename, 'r'))
     num_passages_yielded = 0
+    passages = []
     #while True:
     for book in text:
         #book = choose_random_book(text)
@@ -57,26 +66,20 @@ def load_passages(filename):
                 else:
                     lines.append(' '.join(curr_line))
                     if len(lines) == max_lines_per_passage:
-                        yield lines
+                        #yield lines
+                        passages.append(lines)
                         num_passages_yielded += 1
-                        #if num_passages_yielded >= max_passages:
-                        #    return
+                        if num_passages_yielded >= max_passages:
+                            return passages
                         lines = []
                     curr_line = [word]
                     char_count = 0
+    return passages
 
 # NUMBER OF PASSAGES BY RELIGION:
 # Christianity = 27,250    
 # Islam = 3,080
 # Hinduism = 4,723
-
-def get_len(passages):
-    count = 0
-    for i, passage in enumerate(passages):
-        if i == 0:
-            after = datetime.datetime.now()
-        count += 1
-    return count
 
 def load_images():
     for doc in db.view('_design/religions/_view/religions'):
@@ -85,16 +88,29 @@ def load_images():
         line = passage[line_index]
         images = get_images_by_text(line, 3)
         print images
+        filenames = []
+        for image in images:
+            filenames.extend(crop_and_save_image(image))
+        doc_to_update = couchdb_util.get_doc(db, doc.id)
+        doc_to_update['images'] = filenames
+        couchdb_util.update_doc(db, doc_to_update)
         print
 
+def crop_and_save_image(image_url):
+    file_ending = image_url.rpartition('.')[-1]
+    out_filenames = ['%s_%s.%s' % (int(time.time() * 1000), i, file_ending) for i in range(3)]
+    utils.crop_images(image_url, *[os.path.join(config.IMAGE_DIR, f) for f in out_filenames])
+    print 'saved to', out_filenames
+    return out_filenames
+    
 def get_images_by_text(text, num_of_images):
     urls = []
-    clean_line = replace_special_chars(text)
-    clean_line = utils.strip_all_stop_words(clean_line)
-    print clean_line
+    text = utils.replace_special_chars(text)
+    text = utils.strip_all_stop_words(text)
+    print text
     count = 0
     try:
-        for photo in _flickr.walk(text=clean_line, sort='interestingness-desc', content_type='1', min_taken_date=min_taken_date_filter, safe_search=safe_search_filter):
+        for photo in _flickr.walk(text=text, sort=sort_by, content_type='1', min_taken_date=min_taken_date_filter, safe_search=safe_search_filter):
             (width, height), url = _sizeAndURLOfImage(photo)
             count += 1
             if url:
@@ -112,61 +128,78 @@ def get_images_by_text(text, num_of_images):
 
 ''' Gets the URL of the original version of the image, if it's available '''    
 def _sizeAndURLOfImage(photo_el):
-    sizes_el = _flickr.photos_getSizes(photo_id=photo_el.attrib['id'])
-    for size in sizes_el.findall(".//size"):
-        if size.attrib['label'] == 'Original':
-            return ((int(size.attrib['width']), int(size.attrib['height'])), size.attrib['source'])
+    try:
+        sizes_el = _flickr.photos_getSizes(photo_id=photo_el.attrib['id'])
+        for size in sizes_el.findall(".//size"):
+            if size.attrib['label'] == 'Original':
+                return ((int(size.attrib['width']), int(size.attrib['height'])), size.attrib['source'])
+    except Exception, e:
+        print e
     return ((-1, -1), '')
 
+def delete_old_images():
+    for filename in images_to_delete:
+        if os.path.exists(filename):
+            os.remove(filename)
+            print 'removed file', filename
+
+def delete_old_documents():
+    for doc_id in documents_to_delete:
+        if doc_id in db:
+            db.delete(db[doc_id])
+            print 'deleted ', doc_id
+			
+def flag_images_for_deletion():
+    for filename in os.listdir(config.IMAGE_DIR):
+        images_to_delete.append(os.path.join(config.IMAGE_DIR, filename))
+
+def flag_documents_for_deletion():
+    for doc in db.view('_design/religions/_view/religions'):
+        documents_to_delete.append(doc.id)
+		
 def foo():
     before = datetime.datetime.now()
-    christianity_passages = load_passages(filenames['Christianity']);
-    islam_passages = load_passages(filenames['Islam']);
-    hinduism_passages = load_passages(filenames['Hinduism']);
+    christianity_passages = load_passages(filenames['Christianity'], 5)
+    islam_passages = load_passages(filenames['Islam'])
+    hinduism_passages = load_passages(filenames['Hinduism'])
 
-    count1 = 0
-    count2 = 0
-    total = 0
     for i, p in enumerate(christianity_passages):
+        matches = []
+        max_sim, max_index = 0, 0
+        before_passage = datetime.datetime.now()
         for ii, pp in enumerate(islam_passages):
-            total += len(p) + len(pp)
-        for ii, pp in enumerate(hinduism_passages):
-            total += len(p) + len(pp)
-            
-            
-    #print get_len(christianity_passages)
-    #print get_len(islam_passages)
-    #print get_len(hinduism_passages)
-            
-    print total
-    after = datetime.datetime.now()
-    print after - before
+            cosine.add_document(ii, ' '.join(pp))
+            sim = cosine.classify_document(' '.join(p))
+            if sim[ii] > max_sim:
+                max_sim, max_index = sim[ii], ii
+            cosine.clear()
+        match = islam_passages[max_index]
+        print datetime.datetime.now() - before_passage, i, max_sim, max_index
+        print ' '.join(p)
+        print ' '.join(match)
+        matches.append(match)
+        keywords = utils.get_common_words(' '.join(p), ' '.join(match))
+        print keywords
+        store_passage('Christianity', p, i, matches, keywords.keys(), 0, [])
 
-def replace_special_chars(text):
-    ''' reference: http://www.webmonkey.com/2010/02/special_characters/ '''
-    text = re.sub('&#(22[4-9]|257);', 'a', text)
-    text = re.sub('&#(19[2-7]|256);', 'A', text)
-    text = re.sub('&#231;', 'c', text)
-    text = re.sub('&#199;', 'C', text)
-    text = re.sub('&#208;', 'D', text)
-    text = re.sub('&#(23[2-5]|275);', 'e', text)
-    text = re.sub('&#(20[0-3]|274);', 'E', text)
-    text = re.sub('&#7713;', 'g', text)
-    text = re.sub('&#7712;', 'G', text)
-    text = re.sub('&#(23[6-9]|299);', 'i', text)
-    text = re.sub('&#(20[4-7]|298);', 'I', text)
-    text = re.sub('&#241;', 'n', text)
-    text = re.sub('&#209;', 'N', text)
-    text = re.sub('&#(24[2-6]|333);', 'o', text)
-    text = re.sub('&#(21[0-4]|216|332);', 'O', text)
-    text = re.sub('&#(249|25[0-2]|363);', 'u', text)
-    text = re.sub('&#(21[7-9]|220|362);', 'U', text)
-    text = re.sub('&#(253|255|563);', 'y', text)
-    text = re.sub('&#(221|562);', 'Y', text)
-    return text
+    print 'DONE!', datetime.datetime.now() - before
+
+def store_passage(religion, passage, passage_num, match_1, keywords, line_index, filenames):
+    doc = {'religion':religion, 'passage':passage, 'passage_num':passage_num, 'matches':match_1, 'keywords':keywords, 'selected_line':line_index, 'images':filenames}
+    couchdb_util.store_doc(db, doc)
+
+def run_connections():
+    flag_documents_for_deletion()
+    foo()
+    delete_old_documents()
+
+def run_images():
+    flag_images_for_deletion()
+    load_images()
+    delete_old_images()
 
 if __name__ == '__main__':
-    load_images()    
+    foo()
     #print replace_special_chars('&#363;&#363;&#255;a&#253; &#252;p &#252;p Cow &#220;&#217;dde&#216;r &#208;og&#199;&#224;ppl&#233;e&#203;&#209;')
     
     '''filename = filenames['Christianity'] 

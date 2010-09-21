@@ -175,16 +175,8 @@ except IOError:
     lsStopWords = dStopWords = None
 
 def strip_all_stop_words(sStr, *args, **kwargs):
-  '''Strips leading and trailing stop words.  Will munge spaces.'''
-  if not sStr:
-      return sStr
-  lsWords = sStr.split()
-  clean_list = []
-  for word in lsWords:
-      if not bIsStopWord(word, *args, **kwargs):
-                clean_list.append(word)
-
-  return ' '.join(clean_list)
+  '''Strips all stop words.  Will munge spaces.'''
+  return ' '.join([w for w in sStr.split() if not bIsStopWord(w, *args, **kwargs)])
     
 def sStripStopWords(sStr, *args, **kwargs):
     '''Strips leading and trailing stop words.  Will munge spaces.'''
@@ -232,10 +224,62 @@ def sScrubNonAlNum(sStr, bGoEasyOnUnicode=False):
     else:
         sRet = ''.join([cCharMap(ord(c)) for c in list(sStr.strip()) if c.isalnum() or c.isspace()])
     return sRet
-            
+
+def replace_special_chars(text):
+    ''' reference: http://www.webmonkey.com/2010/02/special_characters/ '''
+    text = re.sub('&#(22[4-9]|257);', 'a', text)
+    text = re.sub('&#(19[2-7]|256);', 'A', text)
+    text = re.sub('&#7685;', 'b', text)
+    text = re.sub('&#231;', 'c', text)
+    text = re.sub('&#199;', 'C', text)
+    text = re.sub('&#208;', 'D', text)
+    text = re.sub('&#(23[2-5]|275);', 'e', text)
+    text = re.sub('&#(20[0-3]|274);', 'E', text)
+    text = re.sub('&#7713;', 'g', text)
+    text = re.sub('&#7712;', 'G', text)
+    text = re.sub('&#7717;', 'h', text)
+    text = re.sub('&#7716;', 'H', text)
+    text = re.sub('&#(23[6-9]|299);', 'i', text)
+    text = re.sub('&#(20[4-7]|298);', 'I', text)
+    text = re.sub('&#7731;', 'k', text)
+    text = re.sub('&#7735;', 'l', text)
+    text = re.sub('&#(241|7751);', 'n', text)
+    text = re.sub('&#(209|7750);', 'N', text)
+    text = re.sub('&#7745;', 'm', text)
+    text = re.sub('&#(24[2-6]|333);', 'o', text)
+    text = re.sub('&#(21[0-4]|216|332);', 'O', text)
+    text = re.sub('&#7771;', 'r', text)
+    text = re.sub('&#7770;', 'R', text)
+    text = re.sub('&#(347|7779);', 's', text)
+    text = re.sub('&#(346|7778);', 'S', text)
+    text = re.sub('&#7789;', 't', text)
+    text = re.sub('&#7788;', 'T', text)
+    text = re.sub('&#(249|25[0-2]|363);', 'u', text)
+    text = re.sub('&#(21[7-9]|220|362);', 'U', text)
+    text = re.sub('&#7817;', 'w', text)
+    text = re.sub('&#(253|255|563);', 'y', text)
+    text = re.sub('&#(221|562);', 'Y', text)
+    text = re.sub('&#7826;', 'Z', text)
+    return text
+
+def get_common_words(text1, text2):
+    text1, text2 = replace_special_chars(text1), replace_special_chars(text2)
+    text1 = [w.lower() for w in text1.split() if not bIsStopWord(w)]
+    text2 = [w.lower() for w in text2.split() if not bIsStopWord(w)]
+    keywords = {}
+    for word in text1:
+        if word in text2:
+            if word in keywords.keys():
+                keywords[word] += 1
+            else:
+                keywords[word] = 1
+            text2.remove(word)
+    return keywords
+
 if __name__ == '__main__':
-	print sStripStopWords('so and the earth brought the forth')
-	print strip_all_stop_words('so and the earth brought the forth')
+    print get_common_words('dog the cat dog mouse', 'the dog cat')
+    #print sStripStopWords('so and the earth brought the forth')
+    #print strip_all_stop_words('so and the earth brought the forth')
     #print crop_images('http://stereo.gsfc.nasa.gov/img/spaceweather/preview/tricompSW.jpg', '/Users/Shawn/Desktop/out1.jpg', '/Users/Shawn/Desktop/out2.jpg', '/Users/Shawn/Desktop/out3.jpg')
     #print crop_images('http://farm3.static.flickr.com/2332/2073367106_b23ea7bb9b_o.jpg', '/Users/Shawn/Desktop/out1.jpg', '/Users/Shawn/Desktop/out2.jpg', '/Users/Shawn/Desktop/out3.jpg')
     
