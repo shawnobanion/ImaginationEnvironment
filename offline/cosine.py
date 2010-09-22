@@ -21,8 +21,8 @@ def classify_document(target_text):
     ret = {}
     target_text = _clean_text(target_text)
     for title, text in _documents.items():
-        calculated_similarity = _similarity(target_text, text)
-        ret[title] = calculated_similarity
+        calculated_similarity, keywords = _similarity(target_text, text)
+        ret[title] = calculated_similarity, keywords
     return ret
     
 def _clean_text(text):
@@ -41,6 +41,7 @@ def _magnitude(model):
     
 def _similarity(lhs, rhs):
     ret = 0.0
+    keywords = []
     lhs = _clean_text(lhs)
     rhs = _clean_text(rhs)
     lhs_words, rhs_words = lhs.split(), rhs.split()
@@ -51,9 +52,9 @@ def _similarity(lhs, rhs):
         rhs_model[word] = 1 + rhs_model.get(word, 0)
       
     for word in _words:
-        print word
         if word in lhs_model.keys() and word in rhs_model.keys():
             ret += lhs_model[word] * rhs_model[word]
+            keywords.append(word)
             
     #print lhs_model
     #print rhs_model
@@ -62,7 +63,7 @@ def _similarity(lhs, rhs):
     else:
         ret = 0
 
-    return ret
+    return ret, keywords
 
 def cos_similarity(lhs, rhs):
     ret = 0.0
@@ -90,14 +91,14 @@ def cos_similarity(lhs, rhs):
         
 if __name__ == '__main__':
 
-    add_document('foo', 'dog cat mouse goat')
-    print classify_document('cat parrot')
+    #add_document('foo', 'dog cat mouse goat')
+    #print classify_document('cat parrot')
 
-    #add_document('foo','Provider and insurer and regulation reimbursement rates and methods for physicians, insurance companies, or specific procedures, peer review procedures, prospective system (PPS), appeals processes, rates for HMO services, regional adjustments, risk adjustment, reimbursement for chiropractors, foreign medical graduates, nurse practitioners, for outpatient services See also: 325 workforce training programs; 302 insurer or managed care consumer protections.')
+    add_document('foo','Provider and insurer and regulation businesses reimbursement rates and methods for physicians, insurance companies, or specific procedures, peer review procedures, prospective system (PPS), appeals processes, rates for HMO services, regional adjustments, risk adjustment, reimbursement for chiropractors, foreign medical graduates, nurse practitioners, for outpatient services See also: 325 workforce training programs; 302 insurer or managed care consumer protections.')
 
     #add_document('bar', 'my name is bar')
 
-    #print classify_document('To ensure that the fees that small businesses and other entities are charged for accepting debit cards are reasonable and proportional to the costs incurred, and to limit card networks from imposing anti-competitive restrictions on small businesses and other entities that accept cards.')
+    print classify_document('To ensure that the fees that small businesses and other entities are charged for accepting debit cards are reasonable and proportional to the costs incurred, and to limit card networks from imposing anti-competitive restrictions on small businesses and other entities that accept cards.')
 
     #print classify_document('The companies physicians NATO statement did not list the nationality of the soldiers, but troops fighting in southern Afghanistan are predominantly American and British.')
 

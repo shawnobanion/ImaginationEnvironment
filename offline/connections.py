@@ -12,18 +12,17 @@ import couchdb_util
 import cosine
 import sys
 
-''' Passage length parameters '''
-max_lines_per_passage = 9
-max_chars_per_line = 25
-max_passages = 1
+''' Passage parameters '''
+MAX_LINES_PER_PASSAGE = 9
+MAX_CHARS_PER_LINE = 25
 
 ''' Flickr search parameters '''
-flickr_api_key = '0d5347d0ffb31395e887a63e0a543abe'
-_flickr = flickrapi.FlickrAPI(flickr_api_key)
-remove_all_stop_words = False
-min_taken_date_filter = 946706400 #1/1/2000
-safe_search_filter = 1
-sort_by = 'interestingness-desc'
+FLICKR_API_KEY = '0d5347d0ffb31395e887a63e0a543abe'
+_flickr = flickrapi.FlickrAPI(FLICKR_API_KEY)
+REMOVE_ALL_STOP_WORDS = False
+MIN_TAKEN_DATE_FILTER = 946706400 #1/1/2000
+SAFE_SEARCH_FILTER = 1
+SORT_BY = 'interestingness-desc'
 
 ''' Image parameters '''    
 max_original_width, min_original_width = 3600, 1200
@@ -52,21 +51,20 @@ def load_passages(filename, max_passages=sys.maxint):
     text = simplejson.load(open(filename, 'r'))
     num_passages_yielded = 0
     passages = []
-    #while True:
-    for book in text:
-        #book = choose_random_book(text)
+    while len(text) > 0:
+    #for book in text:
+        book = choose_random_book(text)
         lines = []
         curr_line = []
         char_count = 0
         for verse in book['verses']:
             for word in verse.split():
-                if char_count + 1 + len(word) < max_chars_per_line:
+                if char_count + 1 + len(word) < MAX_CHARS_PER_LINE:
                     curr_line.append(word)
                     char_count += len(word)
                 else:
                     lines.append(' '.join(curr_line))
-                    if len(lines) == max_lines_per_passage:
-                        #yield lines
+                    if len(lines) == MAX_LINES_PER_PASSAGE:
                         passages.append(lines)
                         num_passages_yielded += 1
                         if num_passages_yielded >= max_passages:
@@ -83,10 +81,9 @@ def load_passages(filename, max_passages=sys.maxint):
 
 def load_images():
     for doc in db.view('_design/religions/_view/religions'):
-        line_index = doc.value['selected_line']
         passage = doc.value['passage']
-        line = passage[line_index]
-        images = get_images_by_text(line, 3)
+        keywords = doc.value['keywords']
+        images = get_images_by_text(' '.join(keywords), 3)
         print images
         filenames = []
         for image in images:
@@ -110,8 +107,8 @@ def get_images_by_text(text, num_of_images):
     print text
     count = 0
     try:
-        for photo in _flickr.walk(text=text, sort=sort_by, content_type='1', min_taken_date=min_taken_date_filter, safe_search=safe_search_filter):
-            (width, height), url = _sizeAndURLOfImage(photo)
+        for photo in _flickr.walk(text=text, sort=SORT_BY, content_type='1', min_taken_date=MIN_TAKEN_DATE_FILTER, safe_search=SAFE_SEARCH_FILTER):
+            (width, height), url = get_image_info(photo)
             count += 1
             if url:
                 photo_id = photo.attrib['id']
@@ -127,7 +124,7 @@ def get_images_by_text(text, num_of_images):
     return urls
 
 ''' Gets the URL of the original version of the image, if it's available '''    
-def _sizeAndURLOfImage(photo_el):
+def get_image_info(photo_el):
     try:
         sizes_el = _flickr.photos_getSizes(photo_id=photo_el.attrib['id'])
         for size in sizes_el.findall(".//size"):
@@ -141,13 +138,13 @@ def delete_old_images():
     for filename in images_to_delete:
         if os.path.exists(filename):
             os.remove(filename)
-            print 'removed file', filename
+    print 'deleted [' + str(len(images_to_delete)) + '] images'
 
 def delete_old_documents():
     for doc_id in documents_to_delete:
         if doc_id in db:
             db.delete(db[doc_id])
-            print 'deleted ', doc_id
+    print 'deleted [' + str(len(documents_to_delete)) + '] couchdb documents'
 			
 def flag_images_for_deletion():
     for filename in os.listdir(config.IMAGE_DIR):
@@ -157,40 +154,50 @@ def flag_documents_for_deletion():
     for doc in db.view('_design/religions/_view/religions'):
         documents_to_delete.append(doc.id)
 		
-def foo():
+def match_passages():
     before = datetime.datetime.now()
-    christianity_passages = load_passages(filenames['Christianity'], 5)
-    islam_passages = load_passages(filenames['Islam'])
-    hinduism_passages = load_passages(filenames['Hinduism'])
+    
+    primary_text, secondary_texts = [], []
+    
+    primary_religion = 'Christianity'
+    primary_text = load_passages(filenames[primary_religion], 5)
+    secondary_texts.append(load_passages(filenames['Islam']))
+    secondary_texts.append(load_passages(filenames['Hinduism']))
 
-    for i, p in enumerate(christianity_passages):
-        matches = []
-        max_sim, max_index = 0, 0
-        before_passage = datetime.datetime.now()
-        for ii, pp in enumerate(islam_passages):
-            cosine.add_document(ii, ' '.join(pp))
-            sim = cosine.classify_document(' '.join(p))
-            if sim[ii] > max_sim:
-                max_sim, max_index = sim[ii], ii
-            cosine.clear()
-        match = islam_passages[max_index]
-        print datetime.datetime.now() - before_passage, i, max_sim, max_index
+    for i, p in enumerate(primary_text):
+        matches, keywords = [], []
         print ' '.join(p)
-        print ' '.join(match)
-        matches.append(match)
-        keywords = utils.get_common_words(' '.join(p), ' '.join(match))
+        for text in secondary_texts:
+            match_passage, match_keywords = get_best_matched_passage(p, text)
+            matches.append(match_passage)
+            keywords.extend(k for k in match_keywords if not k in keywords)
         print keywords
-        store_passage('Christianity', p, i, matches, keywords.keys(), 0, [])
+        store_passage(primary_religion, p, i, matches, keywords, [])
+        print
 
     print 'DONE!', datetime.datetime.now() - before
 
-def store_passage(religion, passage, passage_num, match_1, keywords, line_index, filenames):
-    doc = {'religion':religion, 'passage':passage, 'passage_num':passage_num, 'matches':match_1, 'keywords':keywords, 'selected_line':line_index, 'images':filenames}
+def get_best_matched_passage(passage, passages):
+    match_sim, match_keywords, match_index = 0, [], 0
+    before_passage = datetime.datetime.now()
+    for i, p in enumerate(passages):
+        cosine.add_document(i, ' '.join(p))
+        sim = cosine.classify_document(' '.join(passage))
+        if sim[i][0] > match_sim:
+            match_sim, match_keywords, match_index = sim[i][0], sim[i][1], i
+        cosine.clear()
+    match_passage = passages[match_index]
+    print datetime.datetime.now() - before_passage
+    print ' '.join(match_passage)
+    return match_passage, match_keywords
+
+def store_passage(religion, passage, passage_num, matches, keywords, filenames):
+    doc = {'religion':religion, 'passage':passage, 'passage_num':passage_num, 'matches':matches, 'keywords':keywords, 'images':filenames}
     couchdb_util.store_doc(db, doc)
 
-def run_connections():
+def run_passages():
     flag_documents_for_deletion()
-    foo()
+    match_passages()
     delete_old_documents()
 
 def run_images():
