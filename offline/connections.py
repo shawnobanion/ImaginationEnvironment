@@ -32,8 +32,8 @@ max_original_height, min_original_height = 2400, 786
 selected_images = []
 db = couchdb.Server(config.COUCHDB_CONNECTION_STRING)['imagination']
 filenames = {'Buddhism':'buddha.json', 'Christianity':config.OFFLINE_DIR + 'bible.json', 'Hinduism':config.OFFLINE_DIR + 'vedas.json', 'Islam':config.OFFLINE_DIR + 'quran.json'}
-images_to_delete = []
-documents_to_delete = []
+_images_to_delete = []
+_documents_to_delete = []
 
 def choose_random_book(text):
     index = random.randint(0, len(text) - 1)
@@ -51,9 +51,9 @@ def load_passages(filename, max_passages=sys.maxint):
     text = simplejson.load(open(filename, 'r'))
     num_passages_yielded = 0
     passages = []
-    while len(text) > 0:
-    #for book in text:
-        book = choose_random_book(text)
+    #while len(text) > 0:
+    for book in text:
+        #book = choose_random_book(text)
         lines = []
         curr_line = []
         char_count = 0
@@ -82,7 +82,7 @@ def load_passages(filename, max_passages=sys.maxint):
 def load_images():
     for doc in db.view('_design/religions/_view/religions'):
         passage = doc.value['passage']
-        keywords = doc.value['keywords']
+        keywords = doc.value['common_words']
         images = get_images_by_text(' '.join(keywords), 3)
         print images
         filenames = []
@@ -135,24 +135,24 @@ def get_image_info(photo_el):
     return ((-1, -1), '')
 
 def delete_old_images():
-    for filename in images_to_delete:
+    for filename in _images_to_delete:
         if os.path.exists(filename):
             os.remove(filename)
-    print 'deleted [' + str(len(images_to_delete)) + '] images'
+    print 'deleted [' + str(len(_images_to_delete)) + '] images'
 
 def delete_old_documents():
-    for doc_id in documents_to_delete:
+    for doc_id in _documents_to_delete:
         if doc_id in db:
             db.delete(db[doc_id])
-    print 'deleted [' + str(len(documents_to_delete)) + '] couchdb documents'
+    print 'deleted [' + str(len(_documents_to_delete)) + '] couchdb documents'
 			
 def flag_images_for_deletion():
     for filename in os.listdir(config.IMAGE_DIR):
-        images_to_delete.append(os.path.join(config.IMAGE_DIR, filename))
+        _images_to_delete.append(os.path.join(config.IMAGE_DIR, filename))
 
 def flag_documents_for_deletion():
     for doc in db.view('_design/religions/_view/religions'):
-        documents_to_delete.append(doc.id)
+        _documents_to_delete.append(doc.id)
 		
 def match_passages():
     before = datetime.datetime.now()
@@ -160,7 +160,7 @@ def match_passages():
     primary_text, secondary_texts = [], []
     
     primary_religion = 'Christianity'
-    primary_text = load_passages(filenames[primary_religion], 5)
+    primary_text = load_passages(filenames[primary_religion], 200)
     secondary_texts.append(load_passages(filenames['Islam']))
     secondary_texts.append(load_passages(filenames['Hinduism']))
 
@@ -192,7 +192,7 @@ def get_best_matched_passage(passage, passages):
     return match_passage, match_keywords
 
 def store_passage(religion, passage, passage_num, matches, keywords, filenames):
-    doc = {'religion':religion, 'passage':passage, 'passage_num':passage_num, 'matches':matches, 'keywords':keywords, 'images':filenames}
+    doc = {'religion':religion, 'passage':passage, 'passage_num':passage_num, 'matches':matches, 'common_words':keywords, 'images':filenames}
     couchdb_util.store_doc(db, doc)
 
 def run_passages():
@@ -206,7 +206,7 @@ def run_images():
     delete_old_images()
 
 if __name__ == '__main__':
-    foo()
+    run_passages()
     #print replace_special_chars('&#363;&#363;&#255;a&#253; &#252;p &#252;p Cow &#220;&#217;dde&#216;r &#208;og&#199;&#224;ppl&#233;e&#203;&#209;')
     
     '''filename = filenames['Christianity'] 

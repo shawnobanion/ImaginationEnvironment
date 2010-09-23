@@ -338,8 +338,22 @@ class PorterStemmer:
         return self.b[self.k0:self.k+1]
 
 p = PorterStemmer()
-def sStem(sStr):
-    return ' '.join([p.stem(s, 0, len(s)-1) for s in sStr.split()])
+def sStem(sStr, return_word_mapping=False):
+    if return_word_mapping:
+        mapping = {}
+        ret = []
+        for s in sStr.split():
+            stem = p.stem(s, 0, len(s)-1)
+            ret.append(stem)
+            if stem not in mapping.keys():
+                mapping[stem] = []
+            mapping[stem].append(s)
+        return ' '.join(ret), mapping
+    else:
+        return ' '.join([p.stem(s, 0, len(s)-1) for s in sStr.split()])
 
 if __name__ == '__main__':
-    print sStem('For a abandoned successful technology, reality must take precedence over public relations, for Nature cannot be fooled.')
+    result1 = sStem('For a abandoned successful realities technology, reality must take precedence over public relations, for Nature cannot be fooled.')
+    result2, mapping = sStem('For a abandoned successful realities technology, reality must take precedence over public relations, for Nature cannot be fooled.', return_word_mapping=True)
+    b = result1 == result2
+    print b

@@ -6,6 +6,7 @@ import re
 
 _documents = {}
 _words = {}
+_stem_mapping = {}
 
 def add_document(title, text):
     text = _clean_text(text)
@@ -14,8 +15,8 @@ def add_document(title, text):
     _documents[title] = text
 
 def clear():
-    global _documents, _words
-    _documents, _words = {}, {}
+    global _documents, _words, _stem_mapping
+    _documents, _words, _stem_mapping = {}, {}, {}
         
 def classify_document(target_text):
     ret = {}
@@ -28,9 +29,17 @@ def classify_document(target_text):
 def _clean_text(text):
     reNum = re.compile('\d+')
     text = ' '.join([w for w in text.split() if not bIsStopWord(w)])
-    text = sStem(text)
     text = re.sub(reNum,' ',text)
-    return stripExtraSpaces(removePunctuation(text.lower()))
+    text = stripExtraSpaces(removePunctuation(text.lower()))
+
+    text, mapping = sStem(text, return_word_mapping=True)
+    for k, v in mapping.iteritems():
+        if k in _stem_mapping.keys():
+            _stem_mapping[k].extend(w for w in v if w not in _stem_mapping[k])
+        else:
+            _stem_mapping[k] = v
+            
+    return text
     
 def _magnitude(model):
     ret = 0
@@ -42,10 +51,11 @@ def _magnitude(model):
 def _similarity(lhs, rhs):
     ret = 0.0
     keywords = []
-    lhs = _clean_text(lhs)
-    rhs = _clean_text(rhs)
+    #lhs = _clean_text(lhs) # we are executing _clean_text twice for this text
+    #rhs = _clean_text(rhs) # we are executing _clean_text twice for this text
     lhs_words, rhs_words = lhs.split(), rhs.split()
     lhs_model, rhs_model = {}, {}
+    
     for word in lhs_words:
         lhs_model[word] = 1 + lhs_model.get(word, 0)
     for word in rhs_words:
@@ -54,51 +64,25 @@ def _similarity(lhs, rhs):
     for word in _words:
         if word in lhs_model.keys() and word in rhs_model.keys():
             ret += lhs_model[word] * rhs_model[word]
-            keywords.append(word)
+            keywords.extend(_stem_mapping[word])
             
-    #print lhs_model
-    #print rhs_model
     if _magnitude(lhs_model) * _magnitude(rhs_model) > 0:
     	ret /= (_magnitude(lhs_model) * _magnitude(rhs_model))
     else:
         ret = 0
 
     return ret, keywords
-
-def cos_similarity(lhs, rhs):
-    ret = 0.0
-    lhs = _clean_text(lhs)
-    rhs = _clean_text(rhs)
-    lhs_words, rhs_words = lhs.split(), rhs.split()
-    lhs_model, rhs_model = {}, {}
-    for word in lhs_words:
-        lhs_model[word] = 1 + lhs_model.get(word, 0)
-    for word in rhs_words:
-        rhs_model[word] = 1 + rhs_model.get(word, 0)
-      
-    #print lhs_model
-    #print rhs_model 
-    lsWords = lhs_model.keys()
-    lsWords.extend(rhs_model.keys())
-    _words = list(set(lsWords)) 
-    for word in _words:
-        if word in lhs_model.keys() and word in rhs_model.keys():
-            ret += lhs_model[word] * rhs_model[word]
-
-    ret /= (_magnitude(lhs_model) * _magnitude(rhs_model))
-    return ret
-    
         
 if __name__ == '__main__':
+    
+    add_document('foo', 'dog cat mouse goat playing')
+    print classify_document('cats parrot mouses play playing')
 
-    #add_document('foo', 'dog cat mouse goat')
-    #print classify_document('cat parrot')
-
-    add_document('foo','Provider and insurer and regulation businesses reimbursement rates and methods for physicians, insurance companies, or specific procedures, peer review procedures, prospective system (PPS), appeals processes, rates for HMO services, regional adjustments, risk adjustment, reimbursement for chiropractors, foreign medical graduates, nurse practitioners, for outpatient services See also: 325 workforce training programs; 302 insurer or managed care consumer protections.')
+    #add_document('foo','Provider and insurer and regulation businesses reimbursement rates and methods for physicians, insurance companies, or specific procedures, peer review procedures, prospective system (PPS), appeals processes, rates for HMO services, regional adjustments, risk adjustment, reimbursement for chiropractors, foreign medical graduates, nurse practitioners, for outpatient services See also: 325 workforce training programs; 302 insurer or managed care consumer protections.')
 
     #add_document('bar', 'my name is bar')
 
-    print classify_document('To ensure that the fees that small businesses and other entities are charged for accepting debit cards are reasonable and proportional to the costs incurred, and to limit card networks from imposing anti-competitive restrictions on small businesses and other entities that accept cards.')
+    #print classify_document('To ensure that the fees that small businesses and other entities are charged for accepting debit cards are reasonable and proportional to the costs incurred, and to limit card networks from imposing anti-competitive restrictions on small businesses and other entities that accept cards.')
 
     #print classify_document('The companies physicians NATO statement did not list the nationality of the soldiers, but troops fighting in southern Afghanistan are predominantly American and British.')
 
