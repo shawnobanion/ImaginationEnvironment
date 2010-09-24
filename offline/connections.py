@@ -22,7 +22,7 @@ _flickr = flickrapi.FlickrAPI(FLICKR_API_KEY)
 REMOVE_ALL_STOP_WORDS = False
 MIN_TAKEN_DATE_FILTER = 946706400 #1/1/2000
 SAFE_SEARCH_FILTER = 1
-SORT_BY = 'interestingness-desc'
+SORT_BY = 'relevance'
 
 ''' Image parameters '''    
 max_original_width, min_original_width = 3600, 1200
@@ -82,8 +82,16 @@ def load_passages(filename, max_passages=sys.maxint):
 def load_images():
     for doc in db.view('_design/religions/_view/religions'):
         passage = doc.value['passage']
-        keywords = doc.value['common_words']
-        images = get_images_by_text(' '.join(keywords), 3)
+        common_words = doc.value['common_words']
+        religiousy_stop_words = ['art', 'come', 'forth', 'hast', 'hath', 'let', 'o', 'say', 'shall', 'thee', 'thou', 'thy', 'unto', 'ye']
+        image_search_term = [w for w in common_words if w not in religiousy_stop_words]
+        print image_search_term
+        if len(image_search_term) > 0:
+            image_search_term = image_search_term[random.randint(0, len(image_search_term) - 1)]
+        else:
+            image_search_term = common_words[random.randint(0, len(common_words) - 1)]
+        print image_search_term
+        images = get_images_by_text(image_search_term, 3)
         print images
         filenames = []
         for image in images:
@@ -102,12 +110,11 @@ def crop_and_save_image(image_url):
     
 def get_images_by_text(text, num_of_images):
     urls = []
-    text = utils.replace_special_chars(text)
-    text = utils.strip_all_stop_words(text)
-    print text
+    #text = utils.replace_special_chars(text)
+    #text = utils.strip_all_stop_words(text)
     count = 0
     try:
-        for photo in _flickr.walk(text=text, sort=SORT_BY, content_type='1', min_taken_date=MIN_TAKEN_DATE_FILTER, safe_search=SAFE_SEARCH_FILTER):
+        for photo in _flickr.walk(text=text, sort=SORT_BY, content_type='1', safe_search=SAFE_SEARCH_FILTER):
             (width, height), url = get_image_info(photo)
             count += 1
             if url:
@@ -128,7 +135,7 @@ def get_image_info(photo_el):
     try:
         sizes_el = _flickr.photos_getSizes(photo_id=photo_el.attrib['id'])
         for size in sizes_el.findall(".//size"):
-            if size.attrib['label'] == 'Original':
+            if size.attrib['label'] == 'Original' and re.match('.*\.jpg', size.attrib['source']):
                 return ((int(size.attrib['width']), int(size.attrib['height'])), size.attrib['source'])
     except Exception, e:
         print e
@@ -205,24 +212,9 @@ def run_images():
     load_images()
     delete_old_images()
 
+def run():
+    run_passages()
+    run_images()
+
 if __name__ == '__main__':
     run_passages()
-    #print replace_special_chars('&#363;&#363;&#255;a&#253; &#252;p &#252;p Cow &#220;&#217;dde&#216;r &#208;og&#199;&#224;ppl&#233;e&#203;&#209;')
-    
-    '''filename = filenames['Christianity'] 
-    passages = load_passages(filename)
-    count = 0
-    for i, passage in enumerate(passages):
-        if i == 0:
-            after = datetime.datetime.now()
-        count += 1
-    print after - before
-    print count'''
-    
-    '''for i, passage in enumerate(passages):
-        for line in passage:
-            print line'''
-    '''text = simplejson.load(open(filename, 'r'))
-    book = choose_random_book(text)
-    verse = choose_random_verse(book)
-    print verse'''

@@ -85,8 +85,8 @@ function handleCouchResult(result, column_index) {
         return;
     }
 	
-    result.passage[result.selected_line] = '<span class="key">' + result.passage[result.selected_line] + '</span>';
-    if (debug) sys.puts(result.passage[result.selected_line]);
+    //result.passage[result.selected_line] = '<span class="key">' + result.passage[result.selected_line] + '</span>';
+    //if (debug) sys.puts(result.passage[result.selected_line]);
 	
     for (var i = 0; i < 9; i++) {
         var three_count = Math.floor(i / 3);
@@ -95,7 +95,7 @@ function handleCouchResult(result, column_index) {
         screens[screen_index][text_key] = result.passage[i];
         if (!(i % 3)) { // only do this once per screen, no need to do 3 times
             screens[screen_index].image_url = 'stored_images/' + result.images[three_count];
-            screens[screen_index].rippleDelay = 10000 * three_count;
+            screens[screen_index].rippleDelay = 0; //10000 * three_count;
         }
 		if (i % 3 == 2) updateScreen(screen_index);
     }    
