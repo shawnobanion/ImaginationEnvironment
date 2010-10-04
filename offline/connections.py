@@ -81,7 +81,6 @@ def load_passages(filename, max_passages=sys.maxint):
 
 def load_images():
     for doc in db.view('_design/religions/_view/religions'):
-        passage = doc.value['passage']
         common_words = doc.value['common_words']
         religiousy_stop_words = ['art', 'come', 'forth', 'hast', 'hath', 'let', 'o', 'say', 'shall', 'thee', 'thou', 'thy', 'unto', 'ye']
         image_search_term = [w for w in common_words if w not in religiousy_stop_words]
@@ -167,19 +166,20 @@ def match_passages():
     primary_text, secondary_texts = [], []
     
     primary_religion = 'Christianity'
-    primary_text = load_passages(filenames[primary_religion], 200)
+    primary_text = load_passages(filenames[primary_religion], 5)
     secondary_texts.append(load_passages(filenames['Islam']))
     secondary_texts.append(load_passages(filenames['Hinduism']))
 
     for i, p in enumerate(primary_text):
-        matches, keywords = [], []
+        passages, keywords = [], []
+        passages.append(p)
         print ' '.join(p)
         for text in secondary_texts:
             match_passage, match_keywords = get_best_matched_passage(p, text)
-            matches.append(match_passage)
+            passages.append(match_passage)
             keywords.extend(k for k in match_keywords if not k in keywords)
         print keywords
-        store_passage(primary_religion, p, i, matches, keywords, [])
+        store_passage(primary_religion, passages, i, keywords, [])
         print
 
     print 'DONE!', datetime.datetime.now() - before
@@ -198,8 +198,8 @@ def get_best_matched_passage(passage, passages):
     print ' '.join(match_passage)
     return match_passage, match_keywords
 
-def store_passage(religion, passage, passage_num, matches, keywords, filenames):
-    doc = {'religion':religion, 'passage':passage, 'passage_num':passage_num, 'matches':matches, 'common_words':keywords, 'images':filenames}
+def store_passage(religion, passages, passage_num, keywords, filenames):
+    doc = {'religion':religion, 'passages':passages, 'passage_num':passage_num, 'common_words':keywords, 'images':filenames}
     couchdb_util.store_doc(db, doc)
 
 def run_passages():

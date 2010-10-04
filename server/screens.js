@@ -13,8 +13,6 @@ var screens = [];
 // note: Use the IP address, not localhost. I was receiving a DNS error with localhost.
 var db = CouchDB.db('imagination', 'http://127.0.0.1:5984');
 
-/*var currIndices = {Christianity:1, Hinduism:1, Buddhism:1};*/
-
 exports.get_screen_emitter = function () {return emitter};
 
 /*Creates an array of 9 screens*/
@@ -43,8 +41,8 @@ categoryIndices['Islam'] = 0;
 
 exports.run = function() {
 	setTimeout(function() { runCategory('Christianity', 0); }, 1000);
-	setTimeout(function() { runCategory('Islam', 1); }, 11000);
-	setTimeout(function() { runCategory('Hinduism', 2); }, 21000);
+	//setTimeout(function() { runCategory('Islam', 1); }, 11000);
+	//setTimeout(function() { runCategory('Hinduism', 2); }, 21000);
 }
 
 function runCategory(category, column) {
@@ -84,6 +82,46 @@ function handleCouchResult(result, column_index) {
     catch(e) {
         return;
     }
+
+	for (var i = 0; i < 9; i++){
+		var screen_index = Math.floor(i / 3) + ((i % 3)*3);
+		var three_count = Math.floor(screen_index / 3);
+		screens[screen_index].image_url = 'stored_images/' + result.images[i];
+		
+		var passage_index = Math.floor(i / 3);
+		var passage = result.passages[passage_index];
+		
+		// highlight common words
+		for (var x = 0; x < result.common_words.length - 1; x++){
+			var word = result.common_words[x];
+			sys.puts(word);
+			sys.puts(passage);
+			for (y = 0; y < passage.length - 1; y++){
+				passage[y] = passage[y].replace(word, '<span class="key">' + word + '</span>');
+			}
+		}
+		
+		for (var x = 0; x < 3; x++){
+			var text_key = 'text' + (x);
+			var passage_line_index = passage_index * 3 + x;
+			var passage_line_text = passage[passage_line_index];
+			screens[screen_index][text_key] = passage_line_text;
+		}
+		
+		screens[screen_index].rippleDelay = 10000 * three_count;
+		updateScreen(screen_index);
+	}
+}
+
+/*
+function handleCouchResult(result, column_index) {
+    //I hope you like array math!
+    try {
+        result = result.rows[0].value;
+    }
+    catch(e) {
+        return;
+    }
 	
     //result.passage[result.selected_line] = '<span class="key">' + result.passage[result.selected_line] + '</span>';
     //if (debug) sys.puts(result.passage[result.selected_line]);
@@ -95,8 +133,9 @@ function handleCouchResult(result, column_index) {
         screens[screen_index][text_key] = result.passage[i];
         if (!(i % 3)) { // only do this once per screen, no need to do 3 times
             screens[screen_index].image_url = 'stored_images/' + result.images[three_count];
-            screens[screen_index].rippleDelay = 0; //10000 * three_count;
+            screens[screen_index].rippleDelay = 10000 * three_count;
         }
 		if (i % 3 == 2) updateScreen(screen_index);
     }    
 }
+*/
