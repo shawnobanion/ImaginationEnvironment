@@ -11,6 +11,7 @@ import os
 import couchdb_util
 import cosine
 import sys
+from pyStemmer import sStem
 
 ''' Passage parameters '''
 MAX_LINES_PER_PASSAGE = 9
@@ -83,20 +84,24 @@ def load_images():
     for doc in db.view('_design/religions/_view/religions'):
         common_words = doc.value['common_words']
         religiousy_stop_words = ['art', 'come', 'forth', 'hast', 'hath', 'let', 'o', 'say', 'shall', 'thee', 'thou', 'thy', 'unto', 'ye']
-        image_search_term = [w for w in common_words if w not in religiousy_stop_words]
-        print image_search_term
-        if len(image_search_term) > 0:
-            image_search_term = image_search_term[random.randint(0, len(image_search_term) - 1)]
+        common_words = [w for w in common_words if w not in religiousy_stop_words]
+        print common_words
+        if len(common_words) > 0:
+            search_term = common_words[random.randint(0, len(common_words) - 1)]
+            search_term_stem = sStem(search_term)
+            all_search_terms = ([w for w in common_words if sStem(w) == search_term_stem])
         else:
             image_search_term = common_words[random.randint(0, len(common_words) - 1)]
-        print image_search_term
-        images = get_images_by_text(image_search_term, 3)
+        print search_term
+        print all_search_terms
+        images = get_images_by_text(search_term, 3)
         print images
         filenames = []
         for image in images:
             filenames.extend(crop_and_save_image(image))
         doc_to_update = couchdb_util.get_doc(db, doc.id)
         doc_to_update['images'] = filenames
+        doc_to_update['image_search_terms'] = all_search_terms
         couchdb_util.update_doc(db, doc_to_update)
         print
 
@@ -166,7 +171,7 @@ def match_passages():
     primary_text, secondary_texts = [], []
     
     primary_religion = 'Christianity'
-    primary_text = load_passages(filenames[primary_religion], 5)
+    primary_text = load_passages(filenames[primary_religion], 100)
     secondary_texts.append(load_passages(filenames['Islam']))
     secondary_texts.append(load_passages(filenames['Hinduism']))
 
@@ -217,4 +222,4 @@ def run():
     run_images()
 
 if __name__ == '__main__':
-    run_passages()
+    run_images()

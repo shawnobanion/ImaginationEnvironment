@@ -83,59 +83,51 @@ function handleCouchResult(result, column_index) {
         return;
     }
 
-	for (var i = 0; i < 9; i++){
-		var screen_index = Math.floor(i / 3) + ((i % 3)*3);
-		var three_count = Math.floor(screen_index / 3);
-		screens[screen_index].image_url = 'stored_images/' + result.images[i];
-		
-		var passage_index = Math.floor(i / 3);
-		var passage = result.passages[passage_index];
-		
-		// highlight common words
-		for (var x = 0; x < result.common_words.length - 1; x++){
-			var word = result.common_words[x];
-			sys.puts(word);
-			sys.puts(passage);
-			for (y = 0; y < passage.length - 1; y++){
-				passage[y] = passage[y].replace(word, '<span class="key">' + word + '</span>');
+	// format passage text (highlight common words)
+	/*
+	common_words = result.common_words.sort(sortByStringLen);
+	for (var p = 0; p < result.passages.length; p++){	
+		var passage = result.passages[p];
+		for (var x = 0; x < common_words.length; x++){
+			var word = common_words[x];
+			var regex = new RegExp('\\b' + word + '\\b', 'ig');
+			for (y = 0; y < passage.length; y++){
+				
+				passage[y] = passage[y].replace(regex, '<span class="key">' + word + '</span>');
 			}
 		}
-		
-		for (var x = 0; x < 3; x++){
-			var text_key = 'text' + (x);
-			var passage_line_index = passage_index * 3 + x;
-			var passage_line_text = passage[passage_line_index];
-			screens[screen_index][text_key] = passage_line_text;
+	}
+	*/
+	
+	// setup and update screens (in order of column)
+	var keyword_regex = new RegExp('\\b' + result.image_search_term + '\\b', 'ig');
+	var NUM_COLUMNS = result.passages.length;
+	var LINES_PER_SCREEN = 3;
+	var i = 0;
+	for (column_index = 0; column_index < NUM_COLUMNS; column_index++){
+		for (screen_index = column_index; screen_index < (NUM_COLUMNS * NUM_COLUMNS); screen_index += 3){
+			var passage = result.passages[column_index];
+			for (text_index = 0; text_index < LINES_PER_SCREEN; text_index++){
+				var text_key = 'text' + text_index;
+				var passage_line_index = (Math.floor(screen_index / NUM_COLUMNS) * NUM_COLUMNS) + text_index;
+				
+				// highlight image search terms
+				passage_line_text = passage[passage_line_index];
+				highlight_words = result.image_search_terms.sort(sortByStringLen);
+				for (h = 0; h < highlight_words.length; h++){
+					var regex = new RegExp('\\b' + highlight_words[h] + '\\b', 'ig');
+					passage_line_text = passage_line_text.replace(regex, '<span class="key">' + highlight_words[h] + '</span>');
+				}
+				screens[screen_index][text_key] = passage_line_text;
+			}
+			screens[screen_index].image_url = 'stored_images/' + result.images[i];
+			screens[screen_index].rippleDelay = 10000 * Math.floor(screen_index / NUM_COLUMNS);
+			updateScreen(screen_index);
+			i++;
 		}
-		
-		screens[screen_index].rippleDelay = 10000 * three_count;
-		updateScreen(screen_index);
 	}
 }
 
-/*
-function handleCouchResult(result, column_index) {
-    //I hope you like array math!
-    try {
-        result = result.rows[0].value;
-    }
-    catch(e) {
-        return;
-    }
-	
-    //result.passage[result.selected_line] = '<span class="key">' + result.passage[result.selected_line] + '</span>';
-    //if (debug) sys.puts(result.passage[result.selected_line]);
-	
-    for (var i = 0; i < 9; i++) {
-        var three_count = Math.floor(i / 3);
-        var screen_index = three_count * 3 + column_index;
-        var text_key = 'text' + (i % 3);
-        screens[screen_index][text_key] = result.passage[i];
-        if (!(i % 3)) { // only do this once per screen, no need to do 3 times
-            screens[screen_index].image_url = 'stored_images/' + result.images[three_count];
-            screens[screen_index].rippleDelay = 10000 * three_count;
-        }
-		if (i % 3 == 2) updateScreen(screen_index);
-    }    
+function sortByStringLen(a, b){
+	return b.length - a.length;
 }
-*/

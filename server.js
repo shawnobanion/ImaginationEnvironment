@@ -48,9 +48,9 @@ var server = http.createServer(function(req, res) {
 				try {
 					var filetype = mimetypes[path.substr(-4)];
 					var binary = /^(application|image)/.test(filetype);
-					sys.puts(filetype + " is binary: " + binary);
+					//sys.puts(filetype + " is binary: " + binary);
 					res.writeHead(200, {'Content-Type': filetype});
-					sys.puts("going to read " + (static_dir + path));
+					//sys.puts("going to read " + (static_dir + path));
 					res.write(fs.readFileSync(static_dir + path, binary ? 'binary' : 'utf8'), binary ? 'binary' : 'utf8');
 					res.end();
 				} catch(e){
