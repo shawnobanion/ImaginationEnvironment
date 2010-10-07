@@ -1,12 +1,10 @@
 var sys = require("sys"),
     events = require("events"),
     CouchDB = require('./couchdb').CouchDB;
+
 CouchDB.debug = false;
-
 var debug = true;
-
 var emitter = new events.EventEmitter();
-
 var screens = [];
 
 //var db = CouchDB.db('imagination', 'http://yorda.cs.northwestern.edu:5984');
@@ -33,6 +31,11 @@ function updateScreen(screen_index) {
     emitter.emit('screen', screens[screen_index]);
 }
 
+function bulkUpdate() {
+	if (debug) sys.puts('screens.js - bulkUpdate()');
+	emitter.emit('screen', screens);
+}
+
 var categoryIndices = [];
 categoryIndices['Christianity'] = 0;
 categoryIndices['Hinduism'] = 0;
@@ -46,7 +49,7 @@ exports.run = function() {
 }
 
 function runCategory(category, column) {
-    setInterval(function() { nextCategory(category, column); }, 50000);
+    setInterval(function() { nextCategory(category, column); }, 30000);
     nextCategory(category, column);
 }
 
@@ -83,9 +86,17 @@ function handleCouchResult(result, column_index) {
         return;
     }
 
-	// format passage text (highlight common words)
-	/*
+	// remove search terms from common words
 	common_words = result.common_words.sort(sortByStringLen);
+	highlight_words = result.image_search_terms.sort(sortByStringLen);
+	for (h = 0; h < highlight_words.length; h++) {
+		var index_of = common_words.indexOf(highlight_words[h]);
+		if (index_of != -1) {
+			common_words.splice(index_of, 1);
+		}
+	}
+		
+	// highlight common words
 	for (var p = 0; p < result.passages.length; p++){	
 		var passage = result.passages[p];
 		for (var x = 0; x < common_words.length; x++){
@@ -97,7 +108,9 @@ function handleCouchResult(result, column_index) {
 			}
 		}
 	}
-	*/
+	
+	sys.puts('common words: ' + common_words);
+	sys.puts('search term words: ' + highlight_words);
 	
 	// setup and update screens (in order of column)
 	var keyword_regex = new RegExp('\\b' + result.image_search_term + '\\b', 'ig');
@@ -113,19 +126,20 @@ function handleCouchResult(result, column_index) {
 				
 				// highlight image search terms
 				passage_line_text = passage[passage_line_index];
-				highlight_words = result.image_search_terms.sort(sortByStringLen);
 				for (h = 0; h < highlight_words.length; h++){
 					var regex = new RegExp('\\b' + highlight_words[h] + '\\b', 'ig');
-					passage_line_text = passage_line_text.replace(regex, '<span class="key">' + highlight_words[h] + '</span>');
+					passage_line_text = passage_line_text.replace(regex, '<span class="search_key">' + highlight_words[h] + '</span>');
 				}
 				screens[screen_index][text_key] = passage_line_text;
 			}
 			screens[screen_index].image_url = 'stored_images/' + result.images[i];
-			screens[screen_index].rippleDelay = 10000 * Math.floor(screen_index / NUM_COLUMNS);
-			updateScreen(screen_index);
+			screens[screen_index].rippleDelay = Math.floor(screen_index / NUM_COLUMNS) * 12000; // 10000;
+			//updateScreen(screen_index);
 			i++;
 		}
 	}
+	
+	bulkUpdate();
 }
 
 function sortByStringLen(a, b){

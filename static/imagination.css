@@ -1,14 +1,16 @@
 body {
 	text-align: center;
 	margin: 0;
+	color: #FFF;
 }
 
 .screens {
-    /*width: 990px;
-    height: 690px;*/
-    /*border: 1px solid #999;*/
 	margin-right: auto;
 	margin-left: auto;
+}
+
+.controls {
+	margin-top: 10px;
 }
 
 .control {
@@ -18,29 +20,24 @@ body {
 }
 
 .screen {
-    /*border: 1px dotted #999;*/
     float:left;
+	background-color: #000;
     background-size: 100%;
     background-origin: content;
 }
 .screen.grid {
     width: 330px;
-    height: 230px;
-/*    background-size: 330px 230px;    */
+    height: 231px;
 }
 
 .screen.column {
     width: 990px;
     height: 230px;
-/*    background-size: 990px 230px;*/
 }
 
 .screen.single {
 	width: 100%;
 	height: 100%;
-    /*width: 990px;
-    height: 690px;*/
-/*    background-size: 990px 690px;*/
 }
 
 .text {
@@ -48,25 +45,24 @@ body {
     margin-right: auto;
     width: 100%;
     text-align: center;
-    background-color: black;
-    color: white;
-    opacity: 0;
+	background-color: #000;
     font-size: xx-large;
-	font-family: Arial, 'Helvetica Neue', Helvetica, sans-serif;
-}
-
-span.key {
-    color: yellow;
+	font-family: Helvetica, sans-serif;
 }
 
 .screen.grid .text{
-    height: 76px;
+    height: 77px;
 }
 .screen.column .text{
-    height: 76px;
+    height: 77px;
 }
 .screen.single .text {
-	height: 256px;
+	height: 33%;
+	/*height: 256px;*/
 	font-size: 50px;
 	line-height: 256px;
+}
+
+.key {
+	color: #FFF;
 }

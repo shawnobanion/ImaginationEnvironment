@@ -2,28 +2,29 @@ var socket = null;
 var fade_ins = [], fade_outs = [];
 
 var TEXT = {};
-TEXT.in_time = 2500;
-TEXT.hold_time = 5000;
-TEXT.out_time = 5000;
+TEXT.in_time = 3000; // 2500;
+TEXT.hold_time = 10000; // 5000;
+TEXT.out_time = 4000; // 5000;
 TEXT.delay_zero = 0;
-TEXT.delay_one = 3333;
-TEXT.delay_two = 6666;
+TEXT.delay_one = 4000; // 3333;
+TEXT.delay_two = 8000; // 6666;
 TEXT.opacify_interval = 83;
 
-$(function(foo){
+$(function(foo) {
 	setupControls();
-	setInterval(function() {fade('in');}, TEXT.opacify_interval);
-	setInterval(function() {fade('out');}, TEXT.opacify_interval);
+	//setInterval(function() {fade('in');}, TEXT.opacify_interval);
+	//setInterval(function() {fade('out');}, TEXT.opacify_interval);
 	var id = getQueryStringParameter('id');
-	if (id != '') 
-	{
+	if (id != '') {
 		setupSingleScreen(id);
 		hideControls();
+	} else {
+		setupGrid();
 	}
 	if (getQueryStringParameter('run')) { runScreens(); }
 });
 
-
+/*
 function fade(in_or_out) {
     var stop_fades = [];
     var now = (new Date).valueOf();
@@ -70,7 +71,6 @@ function set_fade(text, in_or_out, start_time_offset, fade_time) {
     fades.push([text, curr_time + start_time_offset, curr_time + start_time_offset + fade_time]);
 }
 
-
 function ripple(screen_selector) {
     var text_zero = $(screen_selector + ' .text:eq(0)').first();
     var text_one = $(screen_selector + ' .text:eq(1)').first();
@@ -87,21 +87,78 @@ function ripple(screen_selector) {
     set_fade(text_two, 'in', TEXT.delay_two, TEXT.in_time);
     set_fade(text_two, 'out', TEXT.delay_two + TEXT.in_time + TEXT.hold_time, TEXT.out_time);
 }
+*/
+
+function animateScreens() {
+	console.log('animating screens');
+	var initial_delay = 5000;
+	setTimeout('highlightKeys()', initial_delay);
+	setTimeout('fadeText()', initial_delay);
+	setTimeout('fadeKeys()', initial_delay + 5000);
+	setTimeout('highlightSearchKeys()', initial_delay + 5000);
+	setTimeout('displayScreenImages()', initial_delay + 13000);
+}
+
+function highlightKeys() {
+	$('.key').animate({color: '#f7da15'}, 2000);
+	$('.search_key').animate({color: '#f7da15'}, 2000);
+}
+
+function highlightSearchKeys() {
+	$(".search_key").animate({color: '#FFF'}, 2000);
+}
+
+function fadeText() {
+	$('.screen').animate({color: '#343434'}, 4000);
+}
+
+function fadeKeys() {
+	$(".key").animate({color: '#343434'}, 2000);
+}
+
+function displayScreenImages() {
+	console.log('displaying images');
+	$('.screen').each(function(i, obj) {
+		$(obj).css('background-image', 'url("' + $(obj).attr('rel') + '")');
+		$(obj).children('.text').fadeOut(2000);
+	});
+}
+
+function onBulkUpdate(data) {
+	var data = JSON.parse(data);
+	for (var id = 0; id < data.length; id++) {
+		var screen_ = $('#screen-' + id).first();
+		if (screen_.length) {		
+			console.log('updating screen id: ' + id);
+			screen_.css('color', '#FFF');
+			$('.text:eq(0)', screen_).html(data[id]['text0']);
+			$('.text:eq(1)', screen_).html(data[id]['text1']);
+			$('.text:eq(2)', screen_).html(data[id]['text2']);
+			screen_.attr('rel', data[id]['image_url']);
+		}
+	}
+	$('.screen').children('.text').fadeIn(2000);
+	animateScreens();
+}
 
 function onUpdate(data) {
     var data = JSON.parse(data);
 	var id = data['id'];
     var screen_ = $('#screen-' + id).first();
-    if (screen_.length) {
+    if (screen_.length) {		
 		console.log('updating screen id: ' + id);
-        screen_.css('background-image', 'url("' + data['image_url'] + '")');
-        $('.text:eq(0)', screen_).html(data['text0']);
-        $('.text:eq(1)', screen_).html(data['text1']);
-        $('.text:eq(2)', screen_).html(data['text2']);
-        var rippleDelay = parseInt(data.rippleDelay);
-        var screen_selector = '#screen-' + id;
-        setTimeout(function() {ripple(screen_selector);}, rippleDelay);
+		screen_.css('color', '#FFF');
+		$('.text:eq(0)', screen_).html(data['text0']);
+		$('.text:eq(1)', screen_).html(data['text1']);
+		$('.text:eq(2)', screen_).html(data['text2']);
+		screen_.attr('rel', data['image_url']);
+		
+		if (id % 3 == 1) {
+			screen_.children('.text').fadeIn(2000);
+		}
     }
+	
+	if (id == 8) animateScreens();
 }
 
 function resetSocket() {
@@ -115,7 +172,7 @@ function resetSocket() {
 	var server = 'localhost';
     socket = new io.Socket(server, {rememberTransport: false, port: 8080});
     socket.connect();
-    socket.addEvent('message', onUpdate);
+    socket.addEvent('message', onBulkUpdate);
 }
 
 function htmlForScreen(class_, id) {
@@ -128,21 +185,27 @@ function htmlForScreen(class_, id) {
     return ret
 }
 
-function setupSingleScreen(id)
-{
+function setupSingleScreen(id) {
 	resetSocket();
 	$('.title').text('Showing screen ' + (id));
 	$('.screens').empty();
 	$('.screens').append(htmlForScreen('single', id));
 }
 
-function runScreens()
-{
+function setupGrid() {
+	resetSocket();
+	$('.title').text("Showing all nine screens");
+	$('.screens').empty().css('width', '990px').css('height', '690px');
+	for (var screen_id = 0; screen_id < 9; screen_id++) {
+		$('.screens').append(htmlForScreen('grid', screen_id));
+	}
+}
+
+function runScreens() {
 	$.get('http://localhost:8080/run');
 }
 
-function hideControls()
-{
+function hideControls() {
 	$('.controls').hide();
 	$('.title').hide();
 }
@@ -152,12 +215,7 @@ function setupControls() {
         runScreens();
     })
     $('.control.grid').click(function () {
-        resetSocket();
-        $('.title').text("Showing all nine screens");
-        $('.screens').empty().css('width', '990px').css('height', '690px');
-        for (var screen_id = 0; screen_id < 9; screen_id++) {
-            $('.screens').append(htmlForScreen('grid', screen_id));
-        }
+		setupGrid();
     });
     $('.control.column').click(function () {
         resetSocket();
@@ -173,7 +231,4 @@ function setupControls() {
         var screen_id = parseInt($(this).attr('id'), 10);
         setupSingleScreen(screen_id);
     });
-	$('.control').click(function () {
-		//hideControls();
-	});
 }

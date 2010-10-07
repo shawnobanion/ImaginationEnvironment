@@ -11,6 +11,7 @@ screens.setup();
 
 var mimetypes = {'.swf':'application/x-shockwave-flash', '.js':'text/javascript', 'html':'text/html', '.css':'text/css', '.jpg':'image/jpeg', 'jpeg':'image/jpeg', '.png':'image/png', '.gif':'image/gif'};
 var static_dir = 'C:/cygwin/home/Shawn/ImaginationEnvironment/static'
+var isRunning = false;
 
 function send404(res)
 {
@@ -29,7 +30,7 @@ screens.get_screen_emitter().addListener('screen', onScreenUpdate);
 var server = http.createServer(function(req, res) {
     var parsed_req = url.parse(req.url, true);
     var path = parsed_req.pathname;
-    sys.puts(path);
+    //sys.puts(path);
 	switch (path){
 		case '/':
 		    var filename = static_dir + '/imagination.html'
@@ -39,8 +40,11 @@ var server = http.createServer(function(req, res) {
     		break;
 		
 		case '/run':
-            sys.puts("Running!");
-            screens.run();
+			if (!isRunning){
+				sys.puts("Running!");
+				screens.run();
+				isRunning = true;
+			}
             break;
             
 		default:
@@ -50,7 +54,7 @@ var server = http.createServer(function(req, res) {
 					var binary = /^(application|image)/.test(filetype);
 					//sys.puts(filetype + " is binary: " + binary);
 					res.writeHead(200, {'Content-Type': filetype});
-					//sys.puts("going to read " + (static_dir + path));
+					sys.puts("reading " + (static_dir + path));
 					res.write(fs.readFileSync(static_dir + path, binary ? 'binary' : 'utf8'), binary ? 'binary' : 'utf8');
 					res.end();
 				} catch(e){
