@@ -49,7 +49,7 @@ exports.run = function() {
 }
 
 function runCategory(category, column) {
-    setInterval(function() { nextCategory(category, column); }, 30000);
+    setInterval(function() { nextCategory(category, column); }, 40000);
     nextCategory(category, column);
 }
 
@@ -118,8 +118,10 @@ function handleCouchResult(result, column_index) {
 	var LINES_PER_SCREEN = 3;
 	var i = 0;
 	for (column_index = 0; column_index < NUM_COLUMNS; column_index++){
-		for (screen_index = column_index; screen_index < (NUM_COLUMNS * NUM_COLUMNS); screen_index += 3){
-			var passage = result.passages[column_index];
+		for (screen_index = column_index; screen_index < (NUM_COLUMNS * NUM_COLUMNS); screen_index += 3) {
+			var passage_index = column_index - 1;
+			if (passage_index < 0) passage_index = NUM_COLUMNS - 1;
+			var passage = result.passages[passage_index];
 			for (text_index = 0; text_index < LINES_PER_SCREEN; text_index++){
 				var text_key = 'text' + text_index;
 				var passage_line_index = (Math.floor(screen_index / NUM_COLUMNS) * NUM_COLUMNS) + text_index;

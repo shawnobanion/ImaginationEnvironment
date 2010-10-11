@@ -1,164 +1,110 @@
 var socket = null;
-var fade_ins = [], fade_outs = [];
-
-var TEXT = {};
-TEXT.in_time = 3000; // 2500;
-TEXT.hold_time = 10000; // 5000;
-TEXT.out_time = 4000; // 5000;
-TEXT.delay_zero = 0;
-TEXT.delay_one = 4000; // 3333;
-TEXT.delay_two = 8000; // 6666;
-TEXT.opacify_interval = 83;
+var isSingleScreen = false;
+var singleScreenId = -1;
 
 $(function(foo) {
 	setupControls();
-	//setInterval(function() {fade('in');}, TEXT.opacify_interval);
-	//setInterval(function() {fade('out');}, TEXT.opacify_interval);
 	var id = getQueryStringParameter('id');
 	if (id != '') {
 		setupSingleScreen(id);
 		hideControls();
-	} else {
+	} 
+	else {
 		setupGrid();
 	}
-	if (getQueryStringParameter('run')) { runScreens(); }
 });
-
-/*
-function fade(in_or_out) {
-    var stop_fades = [];
-    var now = (new Date).valueOf();
-    
-    var arr = in_or_out == 'in' ? fade_ins : fade_outs;
-    
-    $.each(arr, function(i, info) {
-        var text = info[0], start_time = info[1], stop_time = info[2];
-        if ((start_time < now) && (now < stop_time)) {
-            var total_time = stop_time - start_time;
-            var elapsed = now - start_time;
-            var progress = elapsed / total_time;
-            progress = Math.min(progress, 1.0);
-            if (in_or_out == 'out') {
-                progress = 1 - progress;
-            }
-            text.css('opacity', progress);
-        }
-        if (now > stop_time) {
-            var progress = in_or_out == 'in' ? 1.0 : 0.0;
-            text.css('opacity', progress);
-        }
-    });
-    arr = $.grep(arr, function(info, i) {
-        return now < info[2];
-    });
-    
-    // (in_or_out == 'in' ? fade_ins : fade_outs) = arr;
-    
-    if (in_or_out == 'in') {
-        //blech
-        fade_ins = arr;
-    }
-    else {
-        fade_outs = arr;
-    }
-}
-
-function set_fade(text, in_or_out, start_time_offset, fade_time) {
-    //console.log('start_time_offset is %o, fade_time is %o', start_time_offset, fade_time);
-    var fades = in_or_out == 'in' ? fade_ins : fade_outs;
-    var curr_time = (new Date).valueOf();
-    
-    fades.push([text, curr_time + start_time_offset, curr_time + start_time_offset + fade_time]);
-}
-
-function ripple(screen_selector) {
-    var text_zero = $(screen_selector + ' .text:eq(0)').first();
-    var text_one = $(screen_selector + ' .text:eq(1)').first();
-    var text_two = $(screen_selector + ' .text:eq(2)').first();
-    
-    var current_time = (new Date).valueOf();
-    
-    set_fade(text_zero, 'in', TEXT.delay_zero, TEXT.in_time);
-    set_fade(text_zero, 'out', TEXT.delay_zero + TEXT.in_time + TEXT.hold_time, TEXT.out_time);
-    
-    set_fade(text_one, 'in', TEXT.delay_one, TEXT.in_time);
-    set_fade(text_one, 'out', TEXT.delay_one + TEXT.in_time + TEXT.hold_time, TEXT.out_time);
-    
-    set_fade(text_two, 'in', TEXT.delay_two, TEXT.in_time);
-    set_fade(text_two, 'out', TEXT.delay_two + TEXT.in_time + TEXT.hold_time, TEXT.out_time);
-}
-*/
 
 function animateScreens() {
 	console.log('animating screens');
-	var initial_delay = 5000;
-	setTimeout('highlightKeys()', initial_delay);
-	setTimeout('fadeText()', initial_delay);
-	setTimeout('fadeKeys()', initial_delay + 5000);
-	setTimeout('highlightSearchKeys()', initial_delay + 5000);
-	setTimeout('displayScreenImages()', initial_delay + 13000);
+	
+	var initialDelay = 18000;
+	
+	setTimeout('fadeTextColor()', initialDelay);
+	setTimeout('highlightKeys()', initialDelay);
+	setTimeout('highlightSearchKeys()', initialDelay + 5000);
+	setTimeout('fadeKeysColor()', initialDelay + 5000);
+	setTimeout('displayScreenImages()', initialDelay + 10000);
+	setTimeout('hideText()', initialDelay + 14000);
+}
+
+function hideText() {
+	console.log('hiding text');
+	$(".screen").animate({opacity: '0'}, 2000);
 }
 
 function highlightKeys() {
-	$('.key').animate({color: '#f7da15'}, 2000);
-	$('.search_key').animate({color: '#f7da15'}, 2000);
+	console.log('highlight keys');
+	$('.screen .text .key').animate({color: '#f7da15'}, 2000);
+	$('.screen .text .search_key').animate({color: '#f7da15'}, 2000);
 }
 
 function highlightSearchKeys() {
-	$(".search_key").animate({color: '#FFF'}, 2000);
+	console.log('highlighting search keys');
+	$(".screen .text .search_key").animate({color: '#FFF'}, 2000);
 }
 
-function fadeText() {
-	$('.screen').animate({color: '#343434'}, 4000);
+function fadeTextColor() {
+	console.log('fading text color');
+	$(".screen .text").animate({color: '#343434' }, 2000);
 }
 
-function fadeKeys() {
-	$(".key").animate({color: '#343434'}, 2000);
+function fadeKeysColor() {
+	console.log('fading keys color');
+	$(".screen .text .key").animate({color: '#343434'}, 2000);
 }
 
 function displayScreenImages() {
 	console.log('displaying images');
-	$('.screen').each(function(i, obj) {
+	$(".screenbkgd").each(function(i, obj) {
 		$(obj).css('background-image', 'url("' + $(obj).attr('rel') + '")');
-		$(obj).children('.text').fadeOut(2000);
+		$(obj).animate({opacity: '1'}, 2000);
 	});
+	$(".screen .text .search_key").animate({color: '#000'}, 2000);
 }
 
 function onBulkUpdate(data) {
+	
+	$(".screenbkgd").animate({opacity: "0"}, 1000);
+	
 	var data = JSON.parse(data);
+	
+	var centerColumnText = '';
 	for (var id = 0; id < data.length; id++) {
+		if (id % 3 == 1) {
+			centerColumnText += '<div class="text">' + data[id]['text0'] + "</div>";
+			centerColumnText += '<div class="text">' + data[id]['text1'] + "</div>";
+			centerColumnText += '<div class="text">' + data[id]['text2'] + "</div>";
+		}
 		var screen_ = $('#screen-' + id).first();
+		var screenbkgd_ = $('#screenbkgd-' + id).first();
 		if (screen_.length) {		
 			console.log('updating screen id: ' + id);
-			screen_.css('color', '#FFF');
-			$('.text:eq(0)', screen_).html(data[id]['text0']);
-			$('.text:eq(1)', screen_).html(data[id]['text1']);
-			$('.text:eq(2)', screen_).html(data[id]['text2']);
-			screen_.attr('rel', data[id]['image_url']);
+			if (id % 3 != 1) {
+				$('.text:eq(0)', screen_).html(data[id]['text0']);
+				$('.text:eq(1)', screen_).html(data[id]['text1']);
+				$('.text:eq(2)', screen_).html(data[id]['text2']);
+			}
+			screenbkgd_.attr('rel', data[id]['image_url']);
 		}
 	}
-	$('.screen').children('.text').fadeIn(2000);
-	animateScreens();
-}
-
-function onUpdate(data) {
-    var data = JSON.parse(data);
-	var id = data['id'];
-    var screen_ = $('#screen-' + id).first();
-    if (screen_.length) {		
-		console.log('updating screen id: ' + id);
-		screen_.css('color', '#FFF');
-		$('.text:eq(0)', screen_).html(data['text0']);
-		$('.text:eq(1)', screen_).html(data['text1']);
-		$('.text:eq(2)', screen_).html(data['text2']);
-		screen_.attr('rel', data['image_url']);
-		
-		if (id % 3 == 1) {
-			screen_.children('.text').fadeIn(2000);
-		}
-    }
 	
-	if (id == 8) animateScreens();
+	// setup middle column
+	for (var id = 1; id < data.length; id += 3) {
+		if ((isSingleScreen && singleScreenId == id) || (!isSingleScreen && id == 7)) {
+			var screen_ = $('#screen-' + id).first();
+			var animTopFactor = ((-1 * (Math.floor(id / 3))) + 2);
+			var animTop = getScreenHeight() * animTopFactor;
+			console.log('animating top factor: ' + animTopFactor);
+			console.log('animating screen #' + id + ' to -' + animTop + 'px');
+			console.log('center column text: ' + centerColumnText);
+			screen_.css('top', getScreenPositionTop(id)).css('opacity', 1).html(centerColumnText).animate({"top": "-" + animTop + "px"}, 10000);;
+		}
+	}
+
+	$('.screen .text').css('color', '#FFF');
+	$('.screen').delay(12000).animate({opacity: "1"}, 1000);
+	
+	animateScreens();
 }
 
 function resetSocket() {
@@ -175,8 +121,8 @@ function resetSocket() {
     socket.addEvent('message', onBulkUpdate);
 }
 
-function htmlForScreen(class_, id) {
-    var ret = '<div class="' + class_ + ' screen" id="screen-' + id + '">'
+function htmlForScreen(class_, id, top, left) {
+    var ret = '<div class="' + class_ + ' screen" id="screen-' + id + '" style="top: ' + top + 'px; left: ' + left + 'px;">';
     console.log("creating html for screen #" + id);
     ret += '<div class="text"></div>';
     ret += '<div class="text"></div>';
@@ -185,19 +131,66 @@ function htmlForScreen(class_, id) {
     return ret
 }
 
+function htmlForScreenBkgd(class_, id, top, left) {
+	var ret = '<div class="' + class_ + ' screenbkgd" id="screenbkgd-' + id + '" style="top: ' + top + 'px; left: ' + left + 'px;"></div>';
+    console.log("creating html for screenbkdg #" + id);
+    return ret
+}
+
+function getScreenHeight() {
+	if (isSingleScreen) {
+		return self.innerHeight;
+	}
+	return 231;
+}
+function getScreenPositionTop(id) {
+	if (id % 3 == 1) {
+		if (isSingleScreen) {
+			return getScreenHeight();
+		}
+		else {
+			return (Math.floor(id / 3) + 1) * getScreenHeight();
+		}
+	}
+	else {
+		return Math.floor(id / 3) * getScreenHeight();
+	}
+}
+
+function getScreenPositionLeft(id) {
+	return (id % 3) * 330;
+}
+
+function getScreenBkgdPositionTop(id) {
+	return Math.floor(id / 3) * getScreenHeight();
+}
+
+function getScreenBkgdPositionLeft(id) {
+	return (id % 3) * 330;
+}
+
+
 function setupSingleScreen(id) {
+	isSingleScreen = true;
+	singleScreenId = id;
 	resetSocket();
 	$('.title').text('Showing screen ' + (id));
-	$('.screens').empty();
-	$('.screens').append(htmlForScreen('single', id));
+	$('.container').empty();
+	$('#bkgdContainer').empty();
+	$('.container').append(htmlForScreen('single', id, getScreenPositionTop(id), 0));
+	$('#bkgdContainer').append(htmlForScreenBkgd('single', id, 0, 0));
 }
 
 function setupGrid() {
+	isSingleScreen = false;
+	singleScreenId = -1;
 	resetSocket();
 	$('.title').text("Showing all nine screens");
-	$('.screens').empty().css('width', '990px').css('height', '690px');
+	$('#bkgdContainer').empty();
+	$('.container').empty().css('width', '990px').css('height', '690px');
 	for (var screen_id = 0; screen_id < 9; screen_id++) {
-		$('.screens').append(htmlForScreen('grid', screen_id));
+		$('.container').append(htmlForScreen('grid', screen_id, getScreenPositionTop(screen_id), getScreenPositionLeft(screen_id)));
+		$('#bkgdContainer').append(htmlForScreenBkgd('grid', screen_id, getScreenBkgdPositionTop(screen_id), getScreenBkgdPositionLeft(screen_id)));
 	}
 }
 
@@ -216,16 +209,6 @@ function setupControls() {
     })
     $('.control.grid').click(function () {
 		setupGrid();
-    });
-    $('.control.column').click(function () {
-        resetSocket();
-        var column_id = parseInt($(this).attr('id'), 10);
-        $('.title').text('Showing column ' + (column_id));
-        $('.screens').empty();
-        for (var i =0 ; i < 3; i++) {
-            var screen_id = column_id + 3 * i;
-            $('.screens').append(htmlForScreen('column', screen_id));
-        }
     });
     $('.control.single').click(function () {
         var screen_id = parseInt($(this).attr('id'), 10);
