@@ -1,0 +1,63 @@
+html {
+	overflow: hidden;
+}
+
+body {
+	text-align: center;
+	margin: 0;
+	color: #FFF;
+	background-color: #000;
+	font-family: Helvetica, sans-serif;
+}
+
+.container {
+
+}
+
+.controls {
+	float: left;
+}
+
+.control {
+    cursor: pointer;
+    color: green;
+    text-decoration: underline;
+}
+
+.screen {
+	position: absolute;
+	opacity: 0;
+}
+.screen.grid, .screenbkgd.grid {
+    width: 330px;	
+    height: 231px;
+}
+
+.screen.single, .screenbkgd.single {
+	width: 100%;
+	height: 100%;
+}
+
+.screenbkgd {
+	position: absolute;
+	opacity: 0;
+}
+
+.text {
+    margin-left: auto;
+    margin-right: auto;
+    width: 100%;
+    text-align: center;
+    font-size: xx-large;
+}
+
+.screen.grid .text {
+    height: 77px;
+}
+
+.screen.single .text {
+	height: 33%;
+	/*height: 256px;*/
+	font-size: 50px;
+	line-height: 256px;
+}
