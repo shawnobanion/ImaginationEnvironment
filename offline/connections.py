@@ -12,6 +12,7 @@ import couchdb_util
 import cosine
 import sys
 from pyStemmer import sStem
+from pyUtilities import bIsStopWord
 
 ''' Passage parameters '''
 MAX_LINES_PER_PASSAGE = 9
@@ -31,7 +32,7 @@ max_original_height, min_original_height = 2400, 786
 
 ''' Global properties '''
 selected_images = []
-db = couchdb.Server(config.COUCHDB_CONNECTION_STRING)['imagination']
+db = couchdb.Server(config.COUCHDB_CONNECTION_STRING)[config.COUCHDB_DATABASE]
 filenames = {'Buddhism':'buddha.json', 'Christianity':config.OFFLINE_DIR + 'bible.json', 'Hinduism':config.OFFLINE_DIR + 'vedas.json', 'Islam':config.OFFLINE_DIR + 'quran.json'}
 _images_to_delete = []
 _documents_to_delete = []
@@ -92,19 +93,32 @@ def load_passages(filename, max_chapters=sys.maxint):
 # Islam = 3,080
 # Hinduism = 4,723
 
-def load_images():
+def load_images(skip_complete_docs=False):
     for doc in db.view('_design/religions/_view/religions'):
+        
+        if skip_complete_docs and len(doc.value['images']) == 9:
+            continue
+
         common_words = doc.value['common_words']
+        common_words = [w for w in common_words if len(w) > 1]
         religiousy_stop_words = ['art', 'come', 'forth', 'hast', 'hath', 'let', 'o', 'say', 'shall', 'thee', 'thou', 'thy', 'unto', 'ye']
         filtered_common_words = [w for w in common_words if w not in religiousy_stop_words]
+        print 'passage num: ', doc.value['passage_num']
         print filtered_common_words
         
+        all_search_terms = []
         if len(filtered_common_words) > 0:
             search_term = filtered_common_words[random.randint(0, len(filtered_common_words) - 1)]
             search_term_stem = sStem(search_term)
             all_search_terms = ([w for w in filtered_common_words if sStem(w) == search_term_stem])
+        elif len(common_words) == 0:
+            passage_text = ' '.join(doc.value['passages'][0])
+            passage_text_filtered = [w for w in passage_text.split() if not bIsStopWord(w)]
+            search_term = passage_text_filtered[random.randint(0, len(passage_text_filtered) - 1)]
+            all_search_terms.append(search_term)
         else:
-            image_search_term = common_words[random.randint(0, len(common_words) - 1)]
+            search_term = common_words[random.randint(0, len(common_words) - 1)]
+            all_search_terms.append(search_term)
 
         print search_term
         print all_search_terms
@@ -133,11 +147,13 @@ def get_images_by_text(text, num_of_images):
     count = 0
     try:
         for photo in _flickr.walk(text=text, sort=SORT_BY, content_type='1', safe_search=SAFE_SEARCH_FILTER):
-            (width, height), url = get_image_info(photo)
             count += 1
+            photo_id = photo.attrib['id']
+            if photo_id in selected_images:
+                continue
+            (width, height), url = get_image_info(photo)
             if url:
-                photo_id = photo.attrib['id']
-                if not photo_id in selected_images and width > min_original_width and height > min_original_height:
+                if width > min_original_width and height > min_original_height:
                     selected_images.append(photo_id)
                     urls.append(url)
                     if len(urls) == num_of_images:
@@ -231,6 +247,9 @@ def run_images():
     flag_images_for_deletion()
     load_images()
     delete_old_images()
+
+def run_images_incremental():
+    load_images(skip_complete_docs=True);
 
 def run():
     run_passages()
