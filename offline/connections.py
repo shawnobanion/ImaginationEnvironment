@@ -11,6 +11,7 @@ import os
 import couchdb_util
 import cosine
 import sys
+import google_image
 from pyStemmer import sStem
 
 ''' Passage parameters '''
@@ -31,7 +32,7 @@ max_original_height, min_original_height = 2400, 786
 
 ''' Global properties '''
 selected_images = []
-db = couchdb.Server(config.COUCHDB_CONNECTION_STRING)['imagination']
+db = couchdb.Server(config.COUCHDB_CONNECTION_STRING)[config.COUCHDB_DATABASE]
 filenames = {'Buddhism':'buddha.json', 'Christianity':config.OFFLINE_DIR + 'bible.json', 'Hinduism':config.OFFLINE_DIR + 'vedas.json', 'Islam':config.OFFLINE_DIR + 'quran.json'}
 _images_to_delete = []
 _documents_to_delete = []
@@ -108,7 +109,7 @@ def load_images():
 
         print search_term
         print all_search_terms
-        images = get_images_by_text(search_term, 3)
+        images = get_google_images_by_text(search_term, 3)
         print images
         filenames = []
         for image in images:
@@ -148,6 +149,17 @@ def get_images_by_text(text, num_of_images):
     print 'picked [' + str(len(urls)) + '] images, looked at [' + str(count) + ']'
     return urls
 
+def get_google_images_by_text(text, max_images):
+	urls = []
+	ld = google_image.googleImageSearch(text, 'default', '2mp', 3, 'default', 0)
+	for d in ld['responseData']['results']:
+		url = d['url']
+		urls.append(url)
+		if len(urls) == max_images:
+			break
+	print 'picked [' + str(len(urls)) + '] images'
+	return urls
+		
 ''' Gets the URL of the original version of the image, if it's available '''    
 def get_image_info(photo_el):
     try:
@@ -185,7 +197,7 @@ def match_passages():
     primary_text, secondary_texts = [], []
     
     primary_religion = 'Christianity'
-    primary_text = load_passages(filenames[primary_religion], 50)
+    primary_text = load_passages(filenames[primary_religion], 3)
     secondary_texts.append(load_passages(filenames['Islam']))
     secondary_texts.append(load_passages(filenames['Hinduism']))
 
