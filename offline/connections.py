@@ -48,17 +48,18 @@ def choose_random_verse(book):
     book['verses'].pop(index)
     return verse
 
-def load_passages(filename, max_passages=sys.maxint):
+def load_passages(filename, max_chapters=sys.maxint):
     text = simplejson.load(open(filename, 'r'))
-    num_passages_yielded = 0
+    #num_passages_yielded = 0
     passages = []
-    #while len(text) > 0:
-    for book in text:
-        #book = choose_random_book(text)
+    chapter_count = 0
+    for chapter in text:
         lines = []
         curr_line = []
         char_count = 0
-        for verse in book['verses']:
+        total_verses = len(chapter['verses'])
+        
+        for verse_num, verse in enumerate(chapter['verses']):
             for word in verse.split():
                 if char_count + 1 + len(word) < MAX_CHARS_PER_LINE:
                     curr_line.append(word)
@@ -67,12 +68,23 @@ def load_passages(filename, max_passages=sys.maxint):
                     lines.append(' '.join(curr_line))
                     if len(lines) == MAX_LINES_PER_PASSAGE:
                         passages.append(lines)
-                        num_passages_yielded += 1
-                        if num_passages_yielded >= max_passages:
-                            return passages
+                        #num_passages_yielded += 1
+                        #if num_passages_yielded >= max_passages:
+                        #    return passages
                         lines = []
                     curr_line = [word]
                     char_count = 0
+        
+        if any(curr_line):
+            lines.append(' '.join(curr_line))
+            
+        if any(lines):
+            passages.append(lines)
+    
+        chapter_count += 1
+        if chapter_count >= max_chapters:
+            return passages
+
     return passages
 
 # NUMBER OF PASSAGES BY RELIGION:
@@ -84,14 +96,16 @@ def load_images():
     for doc in db.view('_design/religions/_view/religions'):
         common_words = doc.value['common_words']
         religiousy_stop_words = ['art', 'come', 'forth', 'hast', 'hath', 'let', 'o', 'say', 'shall', 'thee', 'thou', 'thy', 'unto', 'ye']
-        common_words = [w for w in common_words if w not in religiousy_stop_words]
-        print common_words
-        if len(common_words) > 0:
-            search_term = common_words[random.randint(0, len(common_words) - 1)]
+        filtered_common_words = [w for w in common_words if w not in religiousy_stop_words]
+        print filtered_common_words
+        
+        if len(filtered_common_words) > 0:
+            search_term = filtered_common_words[random.randint(0, len(filtered_common_words) - 1)]
             search_term_stem = sStem(search_term)
-            all_search_terms = ([w for w in common_words if sStem(w) == search_term_stem])
+            all_search_terms = ([w for w in filtered_common_words if sStem(w) == search_term_stem])
         else:
             image_search_term = common_words[random.randint(0, len(common_words) - 1)]
+
         print search_term
         print all_search_terms
         images = get_images_by_text(search_term, 3)
@@ -171,7 +185,7 @@ def match_passages():
     primary_text, secondary_texts = [], []
     
     primary_religion = 'Christianity'
-    primary_text = load_passages(filenames[primary_religion], 100)
+    primary_text = load_passages(filenames[primary_religion], 50)
     secondary_texts.append(load_passages(filenames['Islam']))
     secondary_texts.append(load_passages(filenames['Hinduism']))
 
@@ -193,11 +207,12 @@ def get_best_matched_passage(passage, passages):
     match_sim, match_keywords, match_index = 0, [], 0
     before_passage = datetime.datetime.now()
     for i, p in enumerate(passages):
-        cosine.add_document(i, ' '.join(p))
-        sim = cosine.classify_document(' '.join(passage))
-        if sim[i][0] > match_sim:
-            match_sim, match_keywords, match_index = sim[i][0], sim[i][1], i
-        cosine.clear()
+        if len(p) == MAX_LINES_PER_PASSAGE:
+            cosine.add_document(i, ' '.join(p))
+            sim = cosine.classify_document(' '.join(passage))
+            if sim[i][0] > match_sim:
+                match_sim, match_keywords, match_index = sim[i][0], sim[i][1], i
+            cosine.clear()
     match_passage = passages[match_index]
     print datetime.datetime.now() - before_passage
     print ' '.join(match_passage)

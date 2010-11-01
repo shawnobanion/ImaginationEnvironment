@@ -15,7 +15,7 @@ body {
 }
 
 .controls {
-	margin-top: 10px;
+	float: left;
 }
 
 .control {

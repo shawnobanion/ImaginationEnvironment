@@ -109,6 +109,7 @@ function handleCouchResult(result, column_index) {
 		}
 	}
 	
+	sys.puts('passage num: ' + result.passage_num);
 	sys.puts('common words: ' + common_words);
 	sys.puts('search term words: ' + highlight_words);
 	
@@ -119,24 +120,31 @@ function handleCouchResult(result, column_index) {
 	var i = 0;
 	for (column_index = 0; column_index < NUM_COLUMNS; column_index++){
 		for (screen_index = column_index; screen_index < (NUM_COLUMNS * NUM_COLUMNS); screen_index += 3) {
+			
+			// ensure the first passage is setup in the middle column
 			var passage_index = column_index - 1;
 			if (passage_index < 0) passage_index = NUM_COLUMNS - 1;
 			var passage = result.passages[passage_index];
+			
+			// setup the passage text
 			for (text_index = 0; text_index < LINES_PER_SCREEN; text_index++){
 				var text_key = 'text' + text_index;
 				var passage_line_index = (Math.floor(screen_index / NUM_COLUMNS) * NUM_COLUMNS) + text_index;
 				
 				// highlight image search terms
 				passage_line_text = passage[passage_line_index];
-				for (h = 0; h < highlight_words.length; h++){
-					var regex = new RegExp('\\b' + highlight_words[h] + '\\b', 'ig');
-					passage_line_text = passage_line_text.replace(regex, '<span class="search_key">' + highlight_words[h] + '</span>');
+				if (passage_line_text) {
+					for (h = 0; h < highlight_words.length; h++){
+						var regex = new RegExp('\\b' + highlight_words[h] + '\\b', 'ig');
+						passage_line_text = passage_line_text.replace(regex, '<span class="search_key">' + highlight_words[h] + '</span>');
+					}
+					screens[screen_index][text_key] = passage_line_text;
 				}
-				screens[screen_index][text_key] = passage_line_text;
 			}
+			
+			// setup the images
 			screens[screen_index].image_url = 'stored_images/' + result.images[i];
 			screens[screen_index].rippleDelay = Math.floor(screen_index / NUM_COLUMNS) * 12000; // 10000;
-			//updateScreen(screen_index);
 			i++;
 		}
 	}

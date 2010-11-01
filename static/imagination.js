@@ -70,20 +70,27 @@ function onBulkUpdate(data) {
 	
 	var centerColumnText = '';
 	for (var id = 0; id < data.length; id++) {
+		
+		// accumulate text for the middle column
 		if (id % 3 == 1) {
 			centerColumnText += '<div class="text">' + data[id]['text0'] + "</div>";
 			centerColumnText += '<div class="text">' + data[id]['text1'] + "</div>";
 			centerColumnText += '<div class="text">' + data[id]['text2'] + "</div>";
 		}
+		
 		var screen_ = $('#screen-' + id).first();
 		var screenbkgd_ = $('#screenbkgd-' + id).first();
 		if (screen_.length) {		
-			console.log('updating screen id: ' + id);
+			console.log('received data for screen id: ' + id);
+			
+			// setup text for side columns
 			if (id % 3 != 1) {
 				$('.text:eq(0)', screen_).html(data[id]['text0']);
 				$('.text:eq(1)', screen_).html(data[id]['text1']);
 				$('.text:eq(2)', screen_).html(data[id]['text2']);
 			}
+			
+			// store url to image
 			screenbkgd_.attr('rel', data[id]['image_url']);
 		}
 	}
@@ -168,7 +175,6 @@ function getScreenBkgdPositionTop(id) {
 function getScreenBkgdPositionLeft(id) {
 	return (id % 3) * 330;
 }
-
 
 function setupSingleScreen(id) {
 	isSingleScreen = true;
