@@ -9,7 +9,7 @@ var screens = [];
 
 //var db = CouchDB.db('imagination', 'http://yorda.cs.northwestern.edu:5984');
 // note: Use the IP address, not localhost. I was receiving a DNS error with localhost.
-var db = CouchDB.db('imagination', 'http://127.0.0.1:5984');
+var db = CouchDB.db('illumination', 'http://127.0.0.1:5984');
 
 exports.get_screen_emitter = function () {return emitter};
 

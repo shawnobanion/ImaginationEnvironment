@@ -10,7 +10,7 @@ var sys = require("sys"),
 screens.setup();
 
 var mimetypes = {'.swf':'application/x-shockwave-flash', '.js':'text/javascript', 'html':'text/html', '.css':'text/css', '.jpg':'image/jpeg', 'jpeg':'image/jpeg', '.png':'image/png', '.gif':'image/gif'};
-var static_dir = 'C:/cygwin/home/Shawn/ImaginationEnvironment/static'
+var static_dir = '/Users/sobanion/programming/illumination/static'
 var isRunning = false;
 
 function send404(res)

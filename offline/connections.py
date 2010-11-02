@@ -33,6 +33,7 @@ max_original_height, min_original_height = 2400, 786
 
 ''' Global properties '''
 selected_images = []
+_previous_searches = {}
 db = couchdb.Server(config.COUCHDB_CONNECTION_STRING)[config.COUCHDB_DATABASE]
 filenames = {'Buddhism':'buddha.json', 'Christianity':config.OFFLINE_DIR + 'bible.json', 'Hinduism':config.OFFLINE_DIR + 'vedas.json', 'Islam':config.OFFLINE_DIR + 'quran.json'}
 _images_to_delete = []
@@ -167,12 +168,20 @@ def get_images_by_text(text, num_of_images):
 
 def get_google_images_by_text(text, max_images):
 	urls = []
-	ld = google_image.googleImageSearch(text, 'default', '2mp', 3, 'default', 0)
+	
+	# increment start index for search term so we don't get same image twice
+	if text in _previous_searches.keys():
+		_previous_searches[text] += max_images
+	else:
+		_previous_searches[text] = 0
+		
+	ld = google_image.googleImageSearch(text, 'default', '2mp', 3, 'default', _previous_searches[text])
 	for d in ld['responseData']['results']:
 		url = d['url']
 		urls.append(url)
 		if len(urls) == max_images:
 			break
+			
 	print 'picked [' + str(len(urls)) + '] images'
 	return urls
 		
