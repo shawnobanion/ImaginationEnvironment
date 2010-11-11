@@ -42,4 +42,7 @@ def googleImageSearch(query,imgtype="default",imgsz='m',rsz='3',filetype='defaul
 if __name__ == '__main__':
 	ld = googleImageSearch('death', 'default', '2mp', 3, 'default', 0)
 	for d in ld['responseData']['results']:
-		print d['url']
+		for a, v in d.iteritems():
+			print a, ":",  v
+		break
+		#print d['url']

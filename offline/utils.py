@@ -12,7 +12,7 @@ import BeautifulSoup
 import Image
 
 import config
-from cStringIO import StringIO
+from StringIO import StringIO
 
 assert config.WEB_CACHE_DIR, "You need to put a variable in your config.py that points to a directory you don't mind getting filled with pages"
 assert os.path.isdir(config.WEB_CACHE_DIR), "config.WEB_CACHE_DIR is not pointing to a directory!"
@@ -141,21 +141,20 @@ def crop_images(in_url, *out_filenames):
     img_filename = GetFile(in_url, return_filename=True)
     
     if True:#'jpeg_decoder' in dir(Image.core):
-        try:
-            image = Image.open(img_filename)
-        except IOError, e:
-            print e
-            return False
-        for out_filename in out_filenames:
-            max_scale = min(image.size[0] / float(target_image_width), image.size[1] / float(target_image_height))
-            scale = random.uniform(1.0, max_scale)
-            crop_width = int(scale * target_image_width)#random.randint(target_image_width, image.size[0] - 1)
-            crop_height = int(scale * target_image_height)#random.randint(target_image_height, image.size[1] - 1)
-            crop_x = int(random.randint(0, int(image.size[0] - crop_width - 1)))
-            crop_y = int(random.randint(0, int(image.size[1] - crop_height - 1)))
-            crop = (crop_x, crop_y, crop_x + crop_width, crop_y + crop_height)
-            region = image.crop(crop).resize((target_image_width, target_image_height))
-            region.save(out_filename, dpi=(24, 24))
+		try:
+			image = Image.open(img_filename)
+			for out_filename in out_filenames:
+				max_scale = min(image.size[0] / float(target_image_width), image.size[1] / float(target_image_height))
+				scale = random.uniform(1.0, max_scale)
+				crop_width = int(scale * target_image_width)#random.randint(target_image_width, image.size[0] - 1)
+				crop_height = int(scale * target_image_height)#random.randint(target_image_height, image.size[1] - 1)
+				crop_x = int(random.randint(0, int(image.size[0] - crop_width - 1)))
+				crop_y = int(random.randint(0, int(image.size[1] - crop_height - 1)))
+				crop = (crop_x, crop_y, crop_x + crop_width, crop_y + crop_height)
+				region = image.crop(crop).resize((target_image_width, target_image_height))
+				region.save(out_filename, dpi=(24, 24))
+		except IOError, e:
+			return False
     else:
         print 'No jpeg, just copying'
         for out_filename in out_filenames:

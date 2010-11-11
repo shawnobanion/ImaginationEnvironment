@@ -4,3 +4,4 @@ static/stored_images
 webcache/
 *.pnws
 .DS_Store
+offline/index/

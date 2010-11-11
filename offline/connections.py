@@ -14,6 +14,14 @@ import sys
 import google_image
 from pyStemmer import sStem
 from pyUtilities import bIsStopWord
+import urllib
+
+assert config.IMAGE_DIR, "You need to specify a directory to write images to in config.py"
+assert os.path.isdir(config.IMAGE_DIR), "Your config.IMAGE_DIR does not specify a valid directory!"
+assert config.OFFLINE_DIR, "You need to specify an offline directory"
+assert os.path.isdir(config.OFFLINE_DIR), "You need to specify a valid offline directory"
+assert config.COUCHDB_CONNECTION_STRING, "You need to specify a couchdb connection string in config.py"
+assert config.COUCHDB_DATABASE, "You need to specify a couchdb database name in config.py"
 
 ''' Passage parameters '''
 MAX_LINES_PER_PASSAGE = 9
@@ -27,7 +35,7 @@ MIN_TAKEN_DATE_FILTER = 946706400 #1/1/2000
 SAFE_SEARCH_FILTER = 1
 SORT_BY = 'relevance'
 
-''' Image parameters '''    
+''' Image parameters '''
 max_original_width, min_original_width = 3600, 1200
 max_original_height, min_original_height = 2400, 786
 
@@ -80,68 +88,64 @@ def load_passages(filename, max_chapters=sys.maxint):
         
         if any(curr_line):
             lines.append(' '.join(curr_line))
-            
+        
         if any(lines):
             passages.append(lines)
-    
+        
         chapter_count += 1
         if chapter_count >= max_chapters:
             return passages
-
+    
     return passages
 
 # NUMBER OF PASSAGES BY RELIGION:
-# Christianity = 27,250    
+# Christianity = 27,250
 # Islam = 3,080
 # Hinduism = 4,723
 
 def load_images(skip_complete_docs=False):
-    for doc in db.view('_design/religions/_view/religions'):
-        
-        if skip_complete_docs and len(doc.value['images']) == 9:
-            continue
+	for doc in db.view('_design/religions/_view/religions'):
+		if skip_complete_docs and len(doc.value['images']) == 9:
+			continue
 
-        common_words = doc.value['common_words']
-        common_words = [w for w in common_words if len(w) > 1]
-        religiousy_stop_words = ['art', 'come', 'forth', 'hast', 'hath', 'let', 'o', 'say', 'shall', 'thee', 'thou', 'thy', 'unto', 'ye']
-        filtered_common_words = [w for w in common_words if w not in religiousy_stop_words]
-        print 'passage num: ', doc.value['passage_num']
-        print filtered_common_words
+		common_words = doc.value['common_words']
+		common_words = [w for w in common_words if len(w) > 1]
+		religiousy_stop_words = ['art', 'come', 'forth', 'hast', 'hath', 'let', 'o', 'say', 'shall', 'thee', 'thou', 'thy', 'unto', 'ye']
+		filtered_common_words = [w for w in common_words if w not in religiousy_stop_words]
+		print 'passage num: ', doc.value['passage_num']
+		print filtered_common_words
         
-        all_search_terms = []
-        if len(filtered_common_words) > 0:
-            search_term = filtered_common_words[random.randint(0, len(filtered_common_words) - 1)]
-            search_term_stem = sStem(search_term)
-            all_search_terms = ([w for w in filtered_common_words if sStem(w) == search_term_stem])
-        elif len(common_words) == 0:
-            passage_text = ' '.join(doc.value['passages'][0])
-            passage_text_filtered = [w for w in passage_text.split() if not bIsStopWord(w)]
-            search_term = passage_text_filtered[random.randint(0, len(passage_text_filtered) - 1)]
-            all_search_terms.append(search_term)
-        else:
-            search_term = common_words[random.randint(0, len(common_words) - 1)]
-            all_search_terms.append(search_term)
-
-        print search_term
-        print all_search_terms
-        images = get_google_images_by_text(search_term, 3)
-        print images
-        filenames = []
-        for image in images:
-            filenames.extend(crop_and_save_image(image))
-        doc_to_update = couchdb_util.get_doc(db, doc.id)
-        doc_to_update['images'] = filenames
-        doc_to_update['image_search_terms'] = all_search_terms
-        couchdb_util.update_doc(db, doc_to_update)
-        print
+		all_search_terms = []
+		if len(filtered_common_words) > 0:
+			search_term = filtered_common_words[random.randint(0, len(filtered_common_words) - 1)]
+			search_term_stem = sStem(search_term)
+			all_search_terms = ([w for w in filtered_common_words if sStem(w) == search_term_stem])
+		elif len(common_words) == 0:
+			passage_text = ' '.join(doc.value['passages'][0])
+			passage_text_filtered = [w for w in passage_text.split() if not bIsStopWord(w)]
+			search_term = passage_text_filtered[random.randint(0, len(passage_text_filtered) - 1)]
+			all_search_terms.append(search_term)
+		else:
+			search_term = common_words[random.randint(0, len(common_words) - 1)]
+			all_search_terms.append(search_term)
+        
+		print search_term
+		print all_search_terms
+		filenames = get_google_images_by_text(search_term, 3)
+		doc_to_update = couchdb_util.get_doc(db, doc.id)
+		doc_to_update['images'] = filenames
+		doc_to_update['image_search_terms'] = all_search_terms
+		couchdb_util.update_doc(db, doc_to_update)
+		print
 
 def crop_and_save_image(image_url):
     file_ending = image_url.rpartition('.')[-1]
     out_filenames = ['%s_%s.%s' % (int(time.time() * 1000), i, file_ending) for i in range(3)]
-    utils.crop_images(image_url, *[os.path.join(config.IMAGE_DIR, f) for f in out_filenames])
+    if not utils.crop_images(image_url, *[os.path.join(config.IMAGE_DIR, f) for f in out_filenames]):
+		return None
     print 'saved to', out_filenames
     return out_filenames
-    
+
 def get_images_by_text(text, num_of_images):
     urls = []
     #text = utils.replace_special_chars(text)
@@ -162,30 +166,35 @@ def get_images_by_text(text, num_of_images):
                         break
     except Exception, e:
             print 'An error occurred while performing a flickr API search', e
-
+    
     print 'picked [' + str(len(urls)) + '] images, looked at [' + str(count) + ']'
     return urls
 
 def get_google_images_by_text(text, max_images):
-	urls = []
+	filenames = []
 	
-	# increment start index for search term so we don't get same image twice
-	if text in _previous_searches.keys():
-		_previous_searches[text] += max_images
-	else:
+	if text not in _previous_searches.keys():
 		_previous_searches[text] = 0
-		
-	ld = google_image.googleImageSearch(text, 'default', '2mp', 3, 'default', _previous_searches[text])
-	for d in ld['responseData']['results']:
-		url = d['url']
-		urls.append(url)
-		if len(urls) == max_images:
-			break
-			
-	print 'picked [' + str(len(urls)) + '] images'
-	return urls
-		
-''' Gets the URL of the original version of the image, if it's available '''    
+	
+	num_images_viewed = 0
+	while len(filenames) / 3 < max_images:
+		ld = google_image.googleImageSearch(text, 'jpg', '2mp', 5, 'default', _previous_searches[text])
+		for d in ld['responseData']['results']:
+			num_images_viewed += 1
+			if d['height'] > min_original_height and d['width'] > min_original_width:
+				url = d['url']
+				result = crop_and_save_image(url)
+				if result:
+					print url
+					filenames.extend(result)
+					if len(filenames) / 3 == max_images:
+						break
+	
+	# increment start index for search term so we don't get same image twice					
+	_previous_searches[text] += num_images_viewed
+	return filenames
+
+''' Gets the URL of the original version of the image, if it's available '''
 def get_image_info(photo_el):
     try:
         sizes_el = _flickr.photos_getSizes(photo_id=photo_el.attrib['id'])
@@ -207,7 +216,7 @@ def delete_old_documents():
         if doc_id in db:
             db.delete(db[doc_id])
     print 'deleted [' + str(len(_documents_to_delete)) + '] couchdb documents'
-			
+
 def flag_images_for_deletion():
     for filename in os.listdir(config.IMAGE_DIR):
         _images_to_delete.append(os.path.join(config.IMAGE_DIR, filename))
@@ -215,30 +224,32 @@ def flag_images_for_deletion():
 def flag_documents_for_deletion():
     for doc in db.view('_design/religions/_view/religions'):
         _documents_to_delete.append(doc.id)
-		
+
 def match_passages():
-    before = datetime.datetime.now()
-    
-    primary_text, secondary_texts = [], []
-    
-    primary_religion = 'Christianity'
-    primary_text = load_passages(filenames[primary_religion], 3)
-    secondary_texts.append(load_passages(filenames['Islam']))
-    secondary_texts.append(load_passages(filenames['Hinduism']))
+	before = datetime.datetime.now()
 
-    for i, p in enumerate(primary_text):
-        passages, keywords = [], []
-        passages.append(p)
-        print ' '.join(p)
-        for text in secondary_texts:
-            match_passage, match_keywords = get_best_matched_passage(p, text)
-            passages.append(match_passage)
-            keywords.extend(k for k in match_keywords if not k in keywords)
-        print keywords
-        store_passage(primary_religion, passages, i, keywords, [])
-        print
+	primary_text, secondary_texts = [], []
 
-    print 'DONE!', datetime.datetime.now() - before
+	primary_religion = 'Christianity'
+	primary_text = load_passages(filenames[primary_religion], 1)
+	#secondary_texts.append(load_passages(filenames['Islam']))
+	#secondary_texts.append(load_passages(filenames['Hinduism']))
+
+	
+
+	for i, p in enumerate(primary_text):
+		passages, keywords = [], []
+		passages.append(p)
+		print ' '.join(p)
+		for text in secondary_texts:
+			match_passage, match_keywords = get_best_matched_passage(p, text)
+			passages.append(match_passage)
+			keywords.extend(k for k in match_keywords if not k in keywords)
+		print keywords
+		store_passage(primary_religion, passages, i, keywords, [])
+		print
+
+	print 'DONE!', datetime.datetime.now() - before
 
 def get_best_matched_passage(passage, passages):
     match_sim, match_keywords, match_index = 0, [], 0
@@ -259,6 +270,21 @@ def store_passage(religion, passages, passage_num, keywords, filenames):
     doc = {'religion':religion, 'passages':passages, 'passage_num':passage_num, 'common_words':keywords, 'images':filenames}
     couchdb_util.store_doc(db, doc)
 
+def audit_images():
+	failed = 0
+	for doc in db.view('_design/religions/_view/religions'):
+		fail = False
+		if len(doc.value['images']) != 9:
+			fail = True
+			print 'Passage #: [' + str(doc.value['passage_num']) + ']', 'Doc ID: [' + str(doc.id) + ']', 'Failed due to not enough images.'
+		for img in doc.value['images']:
+			filepath = config.IMAGE_DIR + '/' + img
+			if not os.path.isfile(filepath):
+				print 'Passage #: [' + str(doc.value['passage_num']) + ']', 'Doc ID: [' + str(doc.id) + ']', 'Could not find:', filepath
+				fail = True
+		if fail: failed += 1
+	print 'Completed image audit. Number of failed documents: [' + str(failed) + ']'
+
 def run_passages():
     flag_documents_for_deletion()
     match_passages()
@@ -277,4 +303,29 @@ def run():
     run_images()
 
 if __name__ == '__main__':
-    run_images()
+	
+	run_images()
+	audit_images()
+	
+	"""
+	urls = []
+	#urls.append("http://www.bergoiata.org/fe/trees/Misty%2520Morn.jpg")
+	urls.append("http://thestraights.com/images/seed-Ervin-brainwash.gif")
+	urls.append("http://albertaperennialtrials.files.wordpress.com/2009/07/sedum-frosty-morn-av.jpg")
+	
+	import urllib2
+	import Image
+	for url in urls:
+		opener = urllib.FancyURLopener()
+		ret = opener.open(url).read()
+		im = open(ret)
+		print ret
+		print url
+		#ret = urllib2.Request(url)
+		#print ret
+		#print ret.has_header()
+		#opener = urllib.FancyURLopener()
+		#print opener.open(url)
+		#ret = opener.open(url).read()
+		#print ret
+	"""
