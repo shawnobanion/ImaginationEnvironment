@@ -115,7 +115,7 @@ function resetSocket() {
     }
 	
 	console.log('creating new socket and connecting');
-	var server = 'localhost';
+	var server = '165.124.115.144';
     socket = new io.Socket(server, {rememberTransport: false, port: 8080});
     socket.connect();
     socket.addEvent('message', onBulkUpdate);

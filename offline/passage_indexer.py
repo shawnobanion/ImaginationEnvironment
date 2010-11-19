@@ -26,13 +26,13 @@ def load_passages(filename, max_chapters=sys.maxint):
                 else:
                     lines.append(' '.join(curr_line))
                     if len(lines) == MAX_LINES_PER_PASSAGE:
-                        passages.append(create_index_obj(' '.join(lines), filename))
+                        passages.append(create_index_obj(' ||| '.join(lines), filename))
                         lines = []
                     curr_line = [word]
                     char_count = 0
         
         if any(curr_line):
-            lines.append(' '.join(curr_line))
+            lines.append(' | '.join(curr_line))
         
         if any(lines):
             passages.append(create_index_obj(' '.join(lines), filename))
@@ -49,9 +49,8 @@ def create_index_obj(text, religion):
 def add_passages(passages):
 	lucene_indexer.IndexObjects(passages, INDEX_ROOT_DIR)
 
-def index_passages(filename):
-	add_passages(load_passages(filename))
-
 if __name__ == '__main__':
-	index_passages(filenames['Islam'])
-	index_passages(filenames['Hinduism'])
+	passages = []
+	passages.extend(load_passages(filenames['Islam']))
+	passages.extend(load_passages(filenames['Hinduism']))
+	add_passages(passages)

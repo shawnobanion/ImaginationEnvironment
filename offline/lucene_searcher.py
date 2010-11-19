@@ -3,24 +3,31 @@ from lucene import \
     QueryParser, IndexSearcher, StandardAnalyzer, SimpleFSDirectory, File, \
     VERSION, initVM, Version
 
-def execute_query(query):
-	
-	STORE_DIR = "index"
-    initVM()
-    print 'lucene', VERSION
-    directory = SimpleFSDirectory(File(STORE_DIR))
-    searcher = IndexSearcher(directory, True)
-    analyzer = StandardAnalyzer(Version.LUCENE_CURRENT)
-    results = get_results(searcher, analyzer, query)
-    searcher.close()
+def execute_query(query, store_dir, result_set_size=1):
+	initVM()
+	directory = SimpleFSDirectory(File(store_dir))
+	searcher = IndexSearcher(directory, True)
+	analyzer = StandardAnalyzer(Version.LUCENE_CURRENT)
+	results = get_results(searcher, analyzer, query, result_set_size)
+	searcher.close()
 	return results
 
-def get_results(searcher, analyzer, query_command):
+def get_results(searcher, analyzer, query_command, result_set_size):
 	#command = 'religion:vedas.json AND contents: death' #raw_input("Query:")
 	query = QueryParser(Version.LUCENE_CURRENT, "contents", analyzer).parse(query_command)
-	scoreDocs = searcher.search(query, 50).scoreDocs
-
+	scoreDocs = searcher.search(query, result_set_size).scoreDocs
+	docs = []
 	for scoreDoc in scoreDocs:
 		doc = searcher.doc(scoreDoc.doc)
-		print 'religion', doc.get('religion')
-		print 'contents:', doc.get("contents")
+		docs.append(doc)
+		#print 'religion', doc.get('religion')
+		#print 'contents:', doc.get("contents")
+	return docs
+	
+if __name__ == '__main__':
+	docs = execute_query('death', 'index')
+	print len(docs)
+	for doc in docs:
+		print doc
+		print 'religion:', doc.get('religion')
+		print 'contents:', doc.get('contents')

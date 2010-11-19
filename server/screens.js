@@ -87,8 +87,14 @@ function handleCouchResult(result, column_index) {
     }
 
 	// remove search terms from common words
-	common_words = result.common_words.sort(sortByStringLen);
-	highlight_words = result.image_search_terms.sort(sortByStringLen);
+	common_words = []
+	highlight_words = []
+	if (result.common_words.length > 0){
+		common_words = result.common_words.sort(sortByStringLen);
+	}
+	if (result.image_search_terms.length > 0){
+		highlight_words = result.image_search_terms.sort(sortByStringLen);
+	}
 	for (h = 0; h < highlight_words.length; h++) {
 		var index_of = common_words.indexOf(highlight_words[h]);
 		if (index_of != -1) {

@@ -20,8 +20,10 @@ assert config.PATH_TO_STOP_WORDS_LIST, "You need to put a variable in  your conf
 
 _memory_cache = {}
 
+"""
 target_image_width = 1024
 target_image_height = 768
+"""
 
 def _getFile(url, cachedFile=True, return_filename=False):
     """Does some caching too, not threadsafe, nothing fancy, but MC and RT are slow as all hell."""
@@ -135,25 +137,31 @@ def toascii(text):
     return ret
     
     
-def crop_images(in_url, *out_filenames):
+def crop_images(in_url, target_image_width, target_image_height, randomly_scale_img, *out_filenames):
     '''Takes a filename for the image to crop, and a list of filenames to store cropped versions in.
     Returns True or False for success'''
-    img_filename = GetFile(in_url, return_filename=True)
     
     if True:#'jpeg_decoder' in dir(Image.core):
 		try:
+			img_filename = GetFile(in_url, return_filename=True)
 			image = Image.open(img_filename)
 			for out_filename in out_filenames:
 				max_scale = min(image.size[0] / float(target_image_width), image.size[1] / float(target_image_height))
-				scale = random.uniform(1.0, max_scale)
-				crop_width = int(scale * target_image_width)#random.randint(target_image_width, image.size[0] - 1)
-				crop_height = int(scale * target_image_height)#random.randint(target_image_height, image.size[1] - 1)
-				crop_x = int(random.randint(0, int(image.size[0] - crop_width - 1)))
-				crop_y = int(random.randint(0, int(image.size[1] - crop_height - 1)))
+				if randomly_scale_img:
+					scale = random.uniform(1.0, max_scale)
+					crop_width = int(scale * target_image_width)
+					crop_x = int(random.randint(0, int(image.size[0] - crop_width - 1)))
+					crop_height = int(scale * target_image_height)
+					crop_y = int(random.randint(0, int(image.size[1] - crop_height - 1)))
+				else:
+					crop_x = 0
+					crop_width = int(max_scale * target_image_width)
+					crop_y = 0
+					crop_height = int(max_scale * target_image_height)
 				crop = (crop_x, crop_y, crop_x + crop_width, crop_y + crop_height)
 				region = image.crop(crop).resize((target_image_width, target_image_height))
 				region.save(out_filename, dpi=(24, 24))
-		except IOError, e:
+		except:
 			return False
     else:
         print 'No jpeg, just copying'
@@ -161,6 +169,7 @@ def crop_images(in_url, *out_filenames):
             shutil.copyfile(img_filename, out_filename)
     return True
 
+"""
 def EZGen(val):
     '''If you don't have the copy.copy in there you get some really subtle errors.  Believe me!'''
     while True:
@@ -223,6 +232,7 @@ def sScrubNonAlNum(sStr, bGoEasyOnUnicode=False):
     else:
         sRet = ''.join([cCharMap(ord(c)) for c in list(sStr.strip()) if c.isalnum() or c.isspace()])
     return sRet
+"""
 
 def replace_special_chars(text):
     ''' reference: http://www.webmonkey.com/2010/02/special_characters/ '''
@@ -261,6 +271,7 @@ def replace_special_chars(text):
     text = re.sub('&#7826;', 'Z', text)
     return text
 
+"""
 def get_common_words(text1, text2):
     text1, text2 = replace_special_chars(text1), replace_special_chars(text2)
     text1 = [w.lower() for w in text1.split() if not bIsStopWord(w)]
@@ -274,9 +285,11 @@ def get_common_words(text1, text2):
                 keywords[word] = 1
             text2.remove(word)
     return keywords
+"""
 
 if __name__ == '__main__':
-    print get_common_words('dog the cat dog mouse', 'the dog cat')
+	crop_images('http://images.allmoviephoto.com/2009_Taken/2009_taken_001.jpg', 1024, 768, False, '/Users/sobanion/photo.jpg')
+    #print get_common_words('dog the cat dog mouse', 'the dog cat')
     #print sStripStopWords('so and the earth brought the forth')
     #print strip_all_stop_words('so and the earth brought the forth')
     #print crop_images('http://stereo.gsfc.nasa.gov/img/spaceweather/preview/tricompSW.jpg', '/Users/Shawn/Desktop/out1.jpg', '/Users/Shawn/Desktop/out2.jpg', '/Users/Shawn/Desktop/out3.jpg')
