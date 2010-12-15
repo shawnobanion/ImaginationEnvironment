@@ -1,12 +1,25 @@
 import BeautifulSoup
 import simplejson
 import re
+from beautifulsoup_utility import read_tag
 
 import utils as u
 
-verse_start_regex = re.compile('p. [0-9]+')
+verse_start_regex = re.compile('(p. [0-9]+)|(Next: )')
 
 def _scrape_chapter(html):
+	verses = []
+	doc = BeautifulSoup.BeautifulSoup(html)
+	chapter_name = doc.body.h1.string
+	for p in doc.findAll('a'):
+		pattern = re.compile('\d+')
+		if pattern.match(read_tag(p)):			
+			text = read_tag(p.nextSibling)
+			text = re.sub('&nbsp;', ' ', text).strip()				
+			verses.append(text)
+	return chapter_name, verses
+
+def _scrape_chapter_yaq(html):
     ret = []
     doc = BeautifulSoup.BeautifulSoup(html)
     
@@ -18,12 +31,14 @@ def _scrape_chapter(html):
     while p is not None:
         verse = ''
         while p is not None and not line_starts_with(p, str(i)):
-            line = read_line(p)
+            line = read_tag(p)
+            line = re.sub('^\\d+\\.?', '', line).strip() # remove '1.', '2.', etc.
             match = verse_start_regex.match(line)
             if match is None:
                 verse += ' ' + line
             p = p.findNextSibling('p')
         ret.append(verse)
+        print verse
         i += 1
 
     return chapter_name, ret
@@ -32,26 +47,18 @@ def line_starts_with(tag, exp):
     if tag.string is None:
         return line_starts_with(tag.contents[0], exp)
     return tag.string.startswith(exp)
-
-def read_line(tag):
-    line = ''
-    if tag.string:
-        words = re.sub('[0-9]+\. ', '', tag.string) # remove '1.', '2.', etc.
-        return words
-    for i, text in enumerate(tag):
-        line += read_line(text)
-    return line
                 
 def scrape_chapter(url):
     '''Takes a url like http://www.sacred-texts.com/hin/rigveda/rv05055.htm.
     Returns a list of strings, each a verse-ish'''
     return u.scrapeWith(url, _scrape_chapter)
     
-def scrape_all_and_store():
+def run():
     '''This is the main function to call.  It will scrape the whole page, and write out quran.json
     quran.json is a list of dictionaries.  Each dictionary has a 'book_name' and 'verses' keys.
     'verses' is a list of verses.'''
-    root_url = 'http://www.sacred-texts.com/isl/yaq/yaq{0}.htm'
+    #root_url = 'http://www.sacred-texts.com/isl/yaq/yaq{0}.htm'
+    root_url = 'http://www.sacred-texts.com/isl/pick/{0}.htm'
     filename = 'quran.json'
     quran = []
     for i in range(1, 115):

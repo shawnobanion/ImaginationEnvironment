@@ -110,24 +110,32 @@ def match_passages():
 	primary_text, secondary_texts = [], []
 
 	primary_religion = 'Christianity'
-	primary_text = load_passages(filenames[primary_religion], 25)
+	primary_text = load_passages(filenames[primary_religion], 1)
 
 	for i, p in enumerate(primary_text):		
-		passages, joined_passages = [], []
+		passages, joined_passages, common_words = [], [], []
 		passages.append(p)
 		joined_passage = ' '.join(p)
 		joined_passages.append(joined_passage)
 		print joined_passage
-		clean_passage = removePunctuation(joined_passage)
+		
 		for religion in [filenames['Islam'], filenames['Hinduism']]:
-			match_passage = get_best_matched_passage_lucene(clean_passage, religion)
+			match_passage = get_best_matched_passage_lucene(removePunctuation(joined_passage), religion)
 			joined_match_passage = ' '.join(match_passage)
+			print '*** {0} ***'.format(religion.upper())
 			print joined_match_passage
 			joined_passages.append(joined_match_passage)
 			passages.append(match_passage)
-		keywords = get_common_words(joined_passages)
-		print keywords
-		store_passage(primary_religion, passages, i, keywords, [])
+			common_words.append(get_common_words(joined_passage, joined_match_passage))
+		
+		s = set()
+		map(lambda x: s.update(x), common_words)
+		common_words.reverse()
+		common_words.insert(1, list(s))
+		print common_words
+			
+		#print keywords
+		store_passage(primary_religion, passages, i, list(s), [], common_words)
 		print
 
 	print 'DONE!', datetime.datetime.now() - before
@@ -151,55 +159,39 @@ def load_images(skip_complete_docs=False):
 		print common_words
         
 		search_terms = []
+		search_terms = [w for w in common_words]
 		# pick random common word to use as search term
+		"""
 		if any(common_words):
 			search_terms.append(common_words[random.randint(0, len(common_words) - 1)])
 		else:
 			# no common words exist, so select a random word in passage
 			passage_text_filtered = clean_text(' '.join(doc.value['passages'][0]))
 			search_terms.append(passage_text_filtered[random.randint(0, len(passage_text_filtered) - 1)])
-
+		"""
+		
 		print search_terms
-		filenames = get_google_images_by_text(' '.join(search_terms), 9, 1)
+		
+		#filenames = get_google_images_by_text(' '.join(search_terms), 9, 1)
+		image_filenames = []
+		for st in doc.value['image_search_terms']:
+			image_filenames.extend(get_google_images_by_text(' '.join(st), 3, 1))
+		
 		doc_to_update = couchdb_util.get_doc(db, doc.id)
-		doc_to_update['images'] = filenames
-		doc_to_update['image_search_terms'] = search_terms
+		doc_to_update['images'] = image_filenames
+		#doc_to_update['image_search_terms'] = search_terms
 		couchdb_util.update_doc(db, doc_to_update)
 		print
 
 def crop_and_save_image(image_url, num_copies):
-    file_ending = image_url.rpartition('.')[-1]
+    file_ending = 'jpg' #image_url.rpartition('.')[-1]
     out_filenames = ['%s_%s.%s' % (int(time.time() * 1000), i, file_ending) for i in range(num_copies)]
     if not utils.crop_images(image_url, 1024, 768, False, *[os.path.join(config.IMAGE_DIR, f) for f in out_filenames]):
 		return None
     print 'saved to', out_filenames
     return out_filenames
 
-"""
-def get_images_by_text(text, num_of_images):
-    urls = []
-    #text = utils.replace_special_chars(text)
-    #text = utils.strip_all_stop_words(text)
-    count = 0
-    try:
-        for photo in _flickr.walk(text=text, sort=SORT_BY, content_type='1', safe_search=SAFE_SEARCH_FILTER):
-            count += 1
-            photo_id = photo.attrib['id']
-            if photo_id in selected_images:
-                continue
-            (width, height), url = get_image_info(photo)
-            if url:
-                if width > min_original_width and height > min_original_height:
-                    selected_images.append(photo_id)
-                    urls.append(url)
-                    if len(urls) == num_of_images:
-                        break
-    except Exception, e:
-            print 'An error occurred while performing a flickr API search', e
-    
-    print 'picked [' + str(len(urls)) + '] images, looked at [' + str(count) + ']'
-    return urls
-"""
+
 def get_google_images_by_text(text, max_images, num_copies):
 	filenames = []
 	
@@ -231,33 +223,18 @@ def get_google_images_by_text(text, max_images, num_copies):
 
 	return filenames
 
-"""
-''' Gets the URL of the original version of the image, if it's available '''
-def get_image_info(photo_el):
-    try:
-        sizes_el = _flickr.photos_getSizes(photo_id=photo_el.attrib['id'])
-        for size in sizes_el.findall(".//size"):
-            if size.attrib['label'] == 'Original' and re.match('.*\.jpg', size.attrib['source']):
-                return ((int(size.attrib['width']), int(size.attrib['height'])), size.attrib['source'])
-    except Exception, e:
-        print e
-    return ((-1, -1), '')
-"""
-
 ############################
 ### Lucene
 ############################
 
 def get_best_matched_passage_lucene(text, religion):
-	result = execute_lucene_query(format_lucene_query(religion, text))
-	if not result:
-		# no results in first try, let's remove stop words and try again
-		result = execute_lucene_query(format_lucene_query(religion, ' '.join(set(clean_text(text)))))
-	return result
+	return execute_lucene_query(text, religion)
 
-def execute_lucene_query(query):
+def execute_lucene_query(text, religion):
+	query = format_lucene_query(religion, text)
 	docs = lucene_searcher.execute_query(query, 'index', 10)
 	for doc in docs:
+		assert doc.get('religion') == religion
 		passage = lucene_doc_to_passage(doc)
 		if len(passage) == MAX_LINES_PER_PASSAGE:
 			return passage
@@ -267,47 +244,45 @@ def lucene_doc_to_passage(doc):
 	return doc.get('contents').split(' ||| ')
 
 def format_lucene_query(religion, text):
-	return 'religion:{0} AND {1}'.format(religion, text)
+	return 'religion:{0} AND contents:({1})'.format(religion, text)
 
 ############################
 ### Text Utilities
 ############################
-	
-def get_common_words(passages):
+
+def get_common_words(*texts):
 	word_sets = []
-	for p in passages:
-		word_sets.append(set(clean_text(p)))
+	stem_mapping = {}
+	result = []
+	for text in texts:
+		mapping = clean_stem_text(text)
+		word_sets.append(set(mapping.keys()))
+		for k, v in mapping.iteritems():
+			if k in stem_mapping:
+				stem_mapping[k].extend(v)
+			else:
+				stem_mapping[k] = v
 	common_words = []
 	for set_x, set_y in itertools.combinations(word_sets, 2):
-		common_words.extend(set_x.intersection(set_y))
-	return list(set(common_words))
+		common_words.extend(set_x.intersection(set_y))	
+	for w in common_words:
+		result.extend(stem_mapping[w])	
+	return list(set(result))
+
+def clean_stem_text(text):
+	result = ' '.join([word for word in removePunctuation(text.lower()).split(' ') if not bIsStopWord(word)])
+	mapping = sStem(result, True)
+	return mapping
 		
 def clean_text(text):
-	result = [word for word in removePunctuation(text.lower()).split(' ') if not bIsStopWord(word)]
-	return result
-"""
-def get_best_matched_passage(passage, passages):
-    match_sim, match_keywords, match_index = 0, [], 0
-    before_passage = datetime.datetime.now()
-    for i, p in enumerate(passages):
-        if len(p) == MAX_LINES_PER_PASSAGE:
-            cosine.add_document(i, ' '.join(p))
-            sim = cosine.classify_document(' '.join(passage))
-            if sim[i][0] > match_sim:
-                match_sim, match_keywords, match_index = sim[i][0], sim[i][1], i
-            cosine.clear()
-    match_passage = passages[match_index]
-    print datetime.datetime.now() - before_passage
-    print ' '.join(match_passage)
-    return match_passage, match_keywords
-"""
-
+	return [word for word in removePunctuation(text.lower()).split(' ') if not bIsStopWord(word)]
+	
 ############################
 ### Database
 ############################
 
-def store_passage(religion, passages, passage_num, keywords, filenames):
-    doc = {'religion':religion, 'passages':passages, 'passage_num':passage_num, 'common_words':keywords, 'images':filenames, 'image_search_terms':[]}
+def store_passage(religion, passages, passage_num, keywords, filenames, image_search_terms):
+    doc = {'religion':religion, 'passages':passages, 'passage_num':passage_num, 'common_words':keywords, 'images':filenames, 'image_search_terms':image_search_terms}
     couchdb_util.store_doc(db, doc)
 
 ############################
@@ -356,9 +331,9 @@ def audit_images():
 def audit_passages():
 	failed = 0
 	for doc in db.view('_design/religions/_view/religions'):
-		fail = False
+		fail = False	
 		passages = doc.value['passages']
-		if len(passages) != 3:
+		if len(passages) != 3 or any(filter(lambda x: len(x) == 0, passages)):
 			fail = True
 			print 'Passage #: [{0}], Doc ID: [{1}], Failed due to not enough passages.'.format(doc.value['passage_num'], doc.id)
 		if fail: failed += 1
@@ -374,22 +349,21 @@ def run_passages():
 	delete_old_documents()
 	audit_passages()
 
-def run_images(skip_complete_docs=False):
+def run_images():
 	flag_images_for_deletion()
-	load_images(skip_complete_docs)
+	load_images()
 	delete_old_images()
 	audit_images()
 
 def run_images_incremental():
-    load_images(skip_complete_docs=True);
-
+	load_images(skip_complete_docs=True);
+	audit_images()
+	
 def run():
     run_passages()
     run_images()
 
 if __name__ == '__main__':
 	#run_passages()
-	flag_images_for_deletion()
-	delete_old_images()
-	run_images()
+	run_images_incremental()
 	#audit_images()

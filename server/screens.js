@@ -88,10 +88,11 @@ function handleCouchResult(result, column_index) {
 
 	// remove search terms from common words
 	common_words = []
-	highlight_words = []
+	//highlight_words = []
 	if (result.common_words.length > 0){
 		common_words = result.common_words.sort(sortByStringLen);
 	}
+	/*
 	if (result.image_search_terms.length > 0){
 		highlight_words = result.image_search_terms.sort(sortByStringLen);
 	}
@@ -101,8 +102,9 @@ function handleCouchResult(result, column_index) {
 			common_words.splice(index_of, 1);
 		}
 	}
-		
+	*/		
 	// highlight common words
+	/*
 	for (var p = 0; p < result.passages.length; p++){	
 		var passage = result.passages[p];
 		for (var x = 0; x < common_words.length; x++){
@@ -114,10 +116,11 @@ function handleCouchResult(result, column_index) {
 			}
 		}
 	}
+	*/
 	
 	sys.puts('passage num: ' + result.passage_num);
 	sys.puts('common words: ' + common_words);
-	sys.puts('search term words: ' + highlight_words);
+	//sys.puts('search term words: ' + highlight_words);
 	
 	// setup and update screens (in order of column)
 	var keyword_regex = new RegExp('\\b' + result.image_search_term + '\\b', 'ig');
@@ -138,14 +141,16 @@ function handleCouchResult(result, column_index) {
 				var passage_line_index = (Math.floor(screen_index / NUM_COLUMNS) * NUM_COLUMNS) + text_index;
 				
 				// highlight image search terms
+				
 				passage_line_text = passage[passage_line_index];
 				if (passage_line_text) {
-					for (h = 0; h < highlight_words.length; h++){
-						var regex = new RegExp('\\b' + highlight_words[h] + '\\b', 'ig');
-						passage_line_text = passage_line_text.replace(regex, '<span class="search_key">' + highlight_words[h] + '</span>');
+					for (h = 0; h < common_words.length; h++){
+						var regex = new RegExp('\\b' + common_words[h] + '\\b', 'ig');
+						passage_line_text = passage_line_text.replace(regex, '<span class="search_key">' + common_words[h] + '</span>');
 					}
 					screens[screen_index][text_key] = passage_line_text;
 				}
+				
 			}
 			
 			// setup the images

@@ -19,15 +19,19 @@ def get_results(searcher, analyzer, query_command, result_set_size):
 	docs = []
 	for scoreDoc in scoreDocs:
 		doc = searcher.doc(scoreDoc.doc)
+		#print searcher.explain(query, scoreDoc.doc).toString()
 		docs.append(doc)
 		#print 'religion', doc.get('religion')
 		#print 'contents:', doc.get("contents")
 	return docs
-	
-if __name__ == '__main__':
+
+def run():
 	docs = execute_query('death', 'index')
 	print len(docs)
 	for doc in docs:
 		print doc
 		print 'religion:', doc.get('religion')
 		print 'contents:', doc.get('contents')
+	
+if __name__ == '__main__':
+	run()

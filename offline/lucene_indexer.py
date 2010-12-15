@@ -2,6 +2,7 @@
 
 import sys, os, lucene, threading, time
 from datetime import datetime
+import csv
 
 """
 This class is loosely based on the Lucene (java implementation) demo class 
@@ -24,16 +25,15 @@ class Ticker(object):
             time.sleep(1.0)
 
 class IndexObjects(object):
-    """Usage: python IndexFiles <doc_directory>"""
-
-    def __init__(self, objs, storeDir):
+	"""Usage: python IndexFiles <doc_directory>"""
+	
+	def __init__(self, objs, storeDir):
 		lucene.initVM()
-		analyzer = lucene.StandardAnalyzer(lucene.Version.LUCENE_CURRENT)
+		analyzer = lucene.StandardAnalyzer(lucene.Version.LUCENE_CURRENT, self.load_stop_words())
 		if not os.path.exists(storeDir):
 			os.mkdir(storeDir)
 		store = lucene.SimpleFSDirectory(lucene.File(storeDir))
-		writer = lucene.IndexWriter(store, analyzer, True,
-		lucene.IndexWriter.MaxFieldLength.LIMITED)
+		writer = lucene.IndexWriter(store, analyzer, True, lucene.IndexWriter.MaxFieldLength.LIMITED)
 		writer.setMaxFieldLength(1048576)
 		self.indexObjs(objs, writer)
 		ticker = Ticker()
@@ -43,21 +43,34 @@ class IndexObjects(object):
 		writer.close()
 		ticker.tick = False
 		print 'done'
-
-    def indexObjs(self, objs, writer):	
+	
+	def load_stop_words(self):
+		# http://www.lextek.com/manuals/onix/stopwords1.html
+		reader = csv.reader(open("stop_words.csv", "rb"))
+		for row in reader:
+			return lucene.StopFilter.makeStopSet(row)
+	
+	def indexObjs(self, objs, writer):	
 		for obj in objs:
 			doc = lucene.Document()
-			for k, v in obj.iteritems():
-				doc.add(lucene.Field(k, v, lucene.Field.Store.YES, lucene.Field.Index.ANALYZED))
+			if 'analyzed' in obj:
+				for k, v in obj['analyzed'].iteritems():
+					doc.add(lucene.Field(k, v, lucene.Field.Store.YES, lucene.Field.Index.ANALYZED))
+			if 'not_analyzed' in obj:
+				for k, v in obj['not_analyzed'].iteritems():
+					doc.add(lucene.Field(k, v, lucene.Field.Store.YES, lucene.Field.Index.NOT_ANALYZED))
 			writer.addDocument(doc)
 		print '{0} documents added'.format(len(objs))
 
-if __name__ == '__main__':
+def run():
 	start = datetime.now()
-	try:
-		objs = [{ 'contents': 'for thou shalt not Shawn', 'passage_num' : '1'}]
-		IndexObjects(objs, "index")
-		end = datetime.now()
-		print end - start
-	except Exception, e:
-		print "Failed: ", e
+	#try:
+	objs = [{ 'contents': 'for thou shalt not Shawn', 'passage_num' : '1'}]
+	IndexObjects(objs, "index")
+	end = datetime.now()
+	print end - start
+	#except Exception, e:
+	#	print "Failed: ", e
+
+if __name__ == '__main__':
+	run()

@@ -5,5 +5,5 @@ COUCHDB_CONNECTION_STRING = 'http://127.0.0.1:5984' #'http://yorda.cs.northweste
 COUCHDB_DATABASE = 'illumination' #'illumination_connections'
 
 ''' paths '''
-PATH_TO_STOP_WORDS_LIST = '/Users/sobanion/programming/illumination/offline/stop_words.lst'
+PATH_TO_STOP_WORDS_LIST = '/Users/sobanion/programming/illumination/offline/stop_words.csv'
 PATH_TO_DICTIONARY_WORDS = ''

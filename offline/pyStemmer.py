@@ -348,7 +348,7 @@ def sStem(sStr, return_word_mapping=False):
             if stem not in mapping.keys():
                 mapping[stem] = []
             mapping[stem].append(s)
-        return ' '.join(ret), mapping
+        return mapping
     else:
         return ' '.join([p.stem(s, 0, len(s)-1) for s in sStr.split()])
 

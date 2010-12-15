@@ -11,6 +11,8 @@ import threading
 import atexit
 import copy
 import re
+import csv
+
 try:
     import hashlib
     md5 = hashlib.md5
@@ -2133,7 +2135,8 @@ except (IOError, NameError), e:
     lsLastNames = []
     
 try:
-    lsStopWords = [l.lower().strip() for l in open(PATH_TO_STOP_WORDS_LIST) if not l.startswith('#')]
+    #lsStopWords = [l.lower().strip() for l in open(PATH_TO_STOP_WORDS_LIST) if not l.startswith('#')]
+    lsStopWords = list(csv.reader(open(PATH_TO_STOP_WORDS_LIST, 'rb')))[0]  
     dStopWords = dict(zip(lsStopWords, EZGen(True)))
 except IOError:
     #print 'DIDNT FIND STOPWORDS!'

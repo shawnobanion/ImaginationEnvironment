@@ -44,13 +44,16 @@ def load_passages(filename, max_chapters=sys.maxint):
     return passages
 
 def create_index_obj(text, religion):
-	return { 'contents' : text, 'religion' : religion }
+	return { 'analyzed' : { 'contents' : text, 'religion' : religion } }
 
 def add_passages(passages):
 	lucene_indexer.IndexObjects(passages, INDEX_ROOT_DIR)
 
-if __name__ == '__main__':
+def run():
 	passages = []
 	passages.extend(load_passages(filenames['Islam']))
 	passages.extend(load_passages(filenames['Hinduism']))
 	add_passages(passages)
+	
+if __name__ == '__main__':
+	run()
