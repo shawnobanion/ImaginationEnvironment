@@ -1,0 +1,1 @@
+scp static/stored_images/* InfoLab@yorda.cs.northwestern.edu:/Users/infolab/Programming/illumination_connections/static/stored_images/

@@ -98,14 +98,15 @@ function onBulkUpdate(data) {
 	
 	// setup middle column
 	for (var id = 1; id < data.length; id += 3) {
-		if ((isSingleScreen && singleScreenId == id) || (!isSingleScreen && id == 7)) {
+		if ((isSingleScreen && singleScreenId == id) || (!isSingleScreen && id == 1)) {
 			var screen_ = $('#screen-' + id).first();
-			var animTopFactor = ((-1 * (Math.floor(id / 3))) + 2);
+			var animTopFactor = Math.floor(id / 3);
 			var animTop = getScreenHeight() * animTopFactor;
+			var animTopStart = getScreenPositionTop(id);
 			console.log('animating top factor: ' + animTopFactor);
-			console.log('animating screen #' + id + ' to -' + animTop + 'px');
+			console.log('animating screen #' + id + ' from ' + animTopStart + ' to -' + animTop + 'px');
 			console.log('center column text: ' + centerColumnText);
-			screen_.css('top', getScreenPositionTop(id)).css('position', 'absolute').css('opacity', 1).html(centerColumnText).animate({"top": "-" + animTop + "px"}, 10000);
+			screen_.css('top', animTopStart).css('position', 'absolute').css('opacity', 1).html(centerColumnText).animate({"top": "-" + animTop + "px"}, 10000);
 		}
 	}
 
@@ -151,9 +152,9 @@ function getScreenHeight() {
 
 function getScreenPositionTop(id) {
 	if (id % 3 == 1) {
-		if (isSingleScreen)
-			return getScreenHeight();
-		return (Math.floor(id / 3) + 1) * getScreenHeight();
+		//if (isSingleScreen)
+		return getScreenHeight() * ((-1 * (Math.floor(id / 3))) + 3);
+		//return (Math.floor(id / 3) + 1) * getScreenHeight();
 	}
 	return Math.floor(id / 3) * getScreenHeight();
 }

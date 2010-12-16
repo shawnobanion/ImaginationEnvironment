@@ -1,0 +1,5 @@
+remote_dir="/Users/infolab/Programming/illumination_connections"
+
+scp ../static/css/* InfoLab@yorda.cs.northwestern.edu:$remote_dir/static/css/
+
+scp ../static/js/imagination.js InfoLab@yorda.cs.northwestern.edu:$remote_dir/static/js/

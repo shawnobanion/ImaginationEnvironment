@@ -5,3 +5,4 @@ webcache/
 *.pnws
 .DS_Store
 offline/index/
+*~
