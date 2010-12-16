@@ -48,7 +48,12 @@ function highlightSearchKeys() {
 */
 function fadeTextColor() {
 	console.log('fading text color');
-	$(".screen .text").animate({color: '#343434'}, 2000);
+	$(".screen .text").each(function(i, obj) {
+		$(obj).animate({color: '#343434'}, 2000);
+		$(obj).animate({color: '#343434'}, 2000);
+	});
+	//$(".screen .text").animate({color: '#343434'}, 2000);
+	//$(".screen .text").animate({color: '#343434'}, 2000);
 }
 /*
 function fadeKeysColor() {

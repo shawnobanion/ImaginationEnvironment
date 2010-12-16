@@ -13,7 +13,7 @@ import cosine
 import sys
 import google_image
 from pyStemmer import sStem
-from pyUtilities import bIsStopWord,removePunctuation
+from pyUtilities import bIsStopWord,removePunctuation,EZGen
 import urllib
 import lucene_searcher
 import itertools
@@ -42,7 +42,7 @@ max_original_width, min_original_width = 3600, 1200
 max_original_height, min_original_height = 2400, 786
 
 ''' Global properties '''
-selected_images = []
+_used_images = {}
 _previous_searches = {}
 db = couchdb.Server(config.COUCHDB_CONNECTION_STRING)[config.COUCHDB_DATABASE]
 filenames = {'Buddhism':'buddha.json', 'Christianity':'bible.json', 'Hinduism':'vedas.json', 'Islam':'quran.json'}
@@ -110,7 +110,7 @@ def match_passages():
 	primary_text, secondary_texts = [], []
 
 	primary_religion = 'Christianity'
-	primary_text = load_passages(filenames[primary_religion], 1)
+	primary_text = load_passages(filenames[primary_religion], 50)
 
 	for i, p in enumerate(primary_text):		
 		passages, joined_passages, common_words = [], [], []
@@ -151,7 +151,7 @@ def match_passages():
 
 def load_images(skip_complete_docs=False):
 	for doc in db.view('_design/religions/_view/religions'):
-		if skip_complete_docs and len(doc.value['images']) == 9:
+		if skip_complete_docs and len(filter(lambda x: x != '', doc.value['images'])) == 9:
 			continue
 
 		common_words = doc.value['common_words']
@@ -172,14 +172,12 @@ def load_images(skip_complete_docs=False):
 		
 		print search_terms
 		
-		#filenames = get_google_images_by_text(' '.join(search_terms), 9, 1)
 		image_filenames = []
 		for st in doc.value['image_search_terms']:
-			image_filenames.extend(get_google_images_by_text(' '.join(st), 3, 1))
+			image_filenames.extend(get_images(' '.join(st), 3, 1))
 		
 		doc_to_update = couchdb_util.get_doc(db, doc.id)
 		doc_to_update['images'] = image_filenames
-		#doc_to_update['image_search_terms'] = search_terms
 		couchdb_util.update_doc(db, doc_to_update)
 		print
 
@@ -192,34 +190,52 @@ def crop_and_save_image(image_url, num_copies):
     return out_filenames
 
 
+def get_images(text, max_images, num_copies):
+	# preferred method
+	image_filenames = get_google_images_by_text(text, max_images, num_copies)
+	if len(image_filenames) == max_images:
+		return image_filenames
+		
+	# select a random word from the search terms
+	words = text.split()
+	if len(words) > 1:
+		random.shuffle(words)
+		while any(words):
+			search_term = words.pop()
+			image_filenames = get_google_images_by_text(search_term, max_images, num_copies)
+			if len(image_filenames) == max_images:
+				return image_filenames
+				
+	# select a random term from the passage
+	
+	return map(lambda x: '', range(0, max_images))
+			
+	
+
 def get_google_images_by_text(text, max_images, num_copies):
 	filenames = []
+	GOOGLE_SEARCH_RSZ = 8
+	MAX_ATTEMPTS = 10
 	
-	if text not in _previous_searches.keys():
-		_previous_searches[text] = 0
-	
-	google_search_rsz = 5
-	attempts = 0
-	MAX_ATTEMPTS = 5
-	while len(filenames) / num_copies < max_images: #2mp
-		if attempts > MAX_ATTEMPTS: break
-		ld = google_image.googleImageSearch(text, 'jpg', '2mp', google_search_rsz, 'default', _previous_searches[text])
-		attempts += 1
-		# no results
+	for start_index in range(0, GOOGLE_SEARCH_RSZ * MAX_ATTEMPTS + 1, GOOGLE_SEARCH_RSZ):
+		ld = google_image.googleImageSearch(text, 'jpg', '2mp', GOOGLE_SEARCH_RSZ, 'default', start_index)
+
 		if not ld or not ld['responseData']:
-			_previous_searches[text] += google_search_rsz
 			continue
 		
 		for d in ld['responseData']['results']:
-			_previous_searches[text] += 1
-			if d['height'] > min_original_height and d['width'] > min_original_width:
+			if d['height'] > min_original_height and d['width'] > min_original_width and d['imageId'] not in _used_images:
 				url = d['url']
 				result = crop_and_save_image(url, num_copies)
 				if result:
 					print url
+					_used_images[d['imageId']] = True
 					filenames.extend(result)
-					if len(filenames) / num_copies == max_images:
+					if len(filenames) / num_copies >= max_images:
 						break
+						
+		if len(filenames) / num_copies >= max_images:
+			break
 
 	return filenames
 
@@ -289,21 +305,11 @@ def store_passage(religion, passages, passage_num, keywords, filenames, image_se
 ### Cleanup
 ############################
 
-def delete_old_images():
-    for filename in _images_to_delete:
-        if os.path.exists(filename):
-            os.remove(filename)
-    print 'deleted [' + str(len(_images_to_delete)) + '] images'
-
 def delete_old_documents():
     for doc_id in _documents_to_delete:
         if doc_id in db:
             db.delete(db[doc_id])
     print 'deleted [' + str(len(_documents_to_delete)) + '] couchdb documents'
-
-def flag_images_for_deletion():
-    for filename in os.listdir(config.IMAGE_DIR):
-        _images_to_delete.append(os.path.join(config.IMAGE_DIR, filename))
 
 def flag_documents_for_deletion():
     for doc in db.view('_design/religions/_view/religions'):
@@ -313,14 +319,18 @@ def flag_documents_for_deletion():
 ### Auditing
 ############################
 
+def audit():
+	audit_images()
+	audit_passages()
+
 def audit_images():
 	failed = 0
 	for doc in db.view('_design/religions/_view/religions'):
 		fail = False
-		if len(doc.value['images']) != 9:
+		if len(filter(lambda x: x != '', doc.value['images'])) != 9:
 			fail = True
 			print 'Passage #: [' + str(doc.value['passage_num']) + ']', 'Doc ID: [' + str(doc.id) + ']', 'Failed due to not enough images.'
-		for img in doc.value['images']:
+		for img in filter(lambda x: x != '', doc.value['images']):
 			filepath = config.IMAGE_DIR + '/' + img
 			if not os.path.isfile(filepath):
 				print 'Passage #: [' + str(doc.value['passage_num']) + ']', 'Doc ID: [' + str(doc.id) + ']', 'Could not find:', filepath
@@ -339,29 +349,41 @@ def audit_passages():
 		if fail: failed += 1
 	print 'Completed passage audit. Number of failed documents: [{0}]'.format(failed)
 
+def delete_unlinked_images():
+	linked_images = {}
+	for doc in db.view('_design/religions/_view/religions'):
+		if any(doc.value['images']):
+			linked_images.update(dict(zip(doc.value['images'], EZGen(True))))
+	files_to_delete = filter(lambda x: x not in linked_images, os.listdir(config.IMAGE_DIR))		
+	for filename in files_to_delete:
+		os.remove(os.path.join(config.IMAGE_DIR, filename))
+	print 'Deleted {0} images'.format(len(files_to_delete))
+
 ############################
 ### Main Entries
 ############################
 
-def run_passages():
+def run_passages(run_audit=True):
 	flag_documents_for_deletion()
 	match_passages()
 	delete_old_documents()
-	audit_passages()
+	if run_audit: audit_passages()
 
-def run_images():
-	flag_images_for_deletion()
+def run_images(run_audit=True):
 	load_images()
-	delete_old_images()
-	audit_images()
+	delete_unlinked_images()
+	if run_audit: audit_images()
 
 def run_images_incremental():
 	load_images(skip_complete_docs=True);
+	delete_unlinked_images()
 	audit_images()
 	
 def run():
-    run_passages()
-    run_images()
+    run_passages(False)
+    run_images(False)
+    audit_passages()
+    audit_images()
 
 if __name__ == '__main__':
 	#run_passages()

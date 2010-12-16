@@ -141,7 +141,6 @@ function handleCouchResult(result, column_index) {
 				var passage_line_index = (Math.floor(screen_index / NUM_COLUMNS) * NUM_COLUMNS) + text_index;
 				
 				// highlight image search terms
-				
 				passage_line_text = passage[passage_line_index];
 				if (passage_line_text) {
 					for (h = 0; h < common_words.length; h++){
