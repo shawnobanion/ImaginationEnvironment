@@ -152,11 +152,12 @@ function getScreenHeight() {
 
 function getScreenPositionTop(id) {
 	if (id % 3 == 1) {
-		//if (isSingleScreen)
 		return getScreenHeight() * ((-1 * (Math.floor(id / 3))) + 3);
-		//return (Math.floor(id / 3) + 1) * getScreenHeight();
+	} else if (isSingleScreen) {
+		return 0;
+	} else {
+		return Math.floor(id / 3) * getScreenHeight();
 	}
-	return Math.floor(id / 3) * getScreenHeight();
 }
 
 function getScreenPositionLeft(id) {

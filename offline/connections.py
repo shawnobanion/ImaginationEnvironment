@@ -349,6 +349,11 @@ def audit_passages():
 		if fail: failed += 1
 	print 'Completed passage audit. Number of failed documents: [{0}]'.format(failed)
 
+def audit_common_words():
+	for doc in db.view('_design/religions/_view/religions'):
+		if not any(doc.value['common_words']):
+			print 'Passage #: [{0}], Doc ID: [{1}], No common words.'.format(doc.value['passage_num'], doc.id)
+
 def delete_unlinked_images():
 	linked_images = {}
 	for doc in db.view('_design/religions/_view/religions'):

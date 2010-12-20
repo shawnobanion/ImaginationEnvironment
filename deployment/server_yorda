@@ -1,0 +1,3 @@
+remote_dir="/Users/infolab/Programming/illumination_connections"
+
+scp ../server/screens.js InfoLab@yorda.cs.northwestern.edu:$remote_dir/server/screens.js
